@@ -32,6 +32,12 @@ beforeAll(async () => {
   await dashboardShown();
 });
 
+function manuscriptButton(): HTMLButtonElement {
+  return [...document.querySelectorAll<HTMLButtonElement>(".preset-button")].find(
+    (button) => button.textContent === "Manuscript figures",
+  ) as HTMLButtonElement;
+}
+
 function select(id: string, value: string): void {
   const element = el<HTMLSelectElement>(id);
   element.value = value;
@@ -43,13 +49,13 @@ describe("main.ts boot", () => {
     expect(el("version-indicator").textContent).toMatch(/^v\d+\.\d+\.\d+$/);
   });
 
-  it("loads the published bundle and opens on the paper's selection", () => {
+  it("loads the published bundle and opens on every result", () => {
     expect(el("load-card").hidden).toBe(true);
     expect(el("data-summary").textContent).toContain("published by NeurodataWithoutBorders/nwb-benchmarks-results");
     const pressed = document.querySelector(".preset-button[aria-pressed='true']");
-    expect(pressed?.textContent).toBe("Paper: all reference environments");
-    for (const id of LBL_MAC_MACHINE_IDS) expect(window.location.search).toContain(`machine=${id}`);
-    expect(el("filter-from").getAttribute("value") ?? el<HTMLInputElement>("filter-from").value).toBe("2025-11-01");
+    expect(pressed?.textContent).toBe("All results");
+    expect(window.location.search).toBe("");
+    expect(el<HTMLInputElement>("filter-from").value).toBe("");
   });
 
   it("draws every figure card", () => {
@@ -73,19 +79,26 @@ describe("main.ts boot", () => {
     expect(el("incremental-figure").textContent).toContain("log scale");
   });
 
-  it("shows the paper's view of a figure on request", () => {
-    el("rankings-paper-btn").click();
+  it("shows the manuscript figures on request, each from its own selection", () => {
+    manuscriptButton().click();
+    expect(window.location.search).toBe("?manuscript");
+    expect(document.querySelector(".preset-button[aria-pressed='true']")?.textContent).toBe("Manuscript figures");
+    expect(el("filter-summary").textContent).toContain("The manuscript's selections");
     expect(el<HTMLSelectElement>("rankings-scale").value).toBe("paper");
+    expect(el<HTMLSelectElement>("traffic-metric").value).toBe("total_transfer_in_bytes");
+    expect(el<HTMLSelectElement>("versions-axis").value).toBe("environment");
+    // Figure 4b compares the dated environments, and the incremental figure comes from the latest of them.
+    expect(el("versions-note").hidden).toBe(true);
+    expect(el("versions-figure").textContent).toContain("2024-06-30");
+    expect(el("incremental-figure").querySelectorAll("svg.chart")).toHaveLength(3);
+    // The filters show the reference selection, which a change leaves the manuscript view with.
+    for (const id of LBL_MAC_MACHINE_IDS) expect(el("facet-list").textContent).toContain(id.slice(0, 7));
+    const exclusions = el<HTMLInputElement>("filter-exclusions");
+    exclusions.checked = false;
+    exclusions.dispatchEvent(new Event("change"));
+    expect(window.location.search).not.toContain("manuscript");
     expect(window.location.search).toContain(`environment=${ENVIRONMENT_TIMEPOINTS["2025-09-01"]}`);
     expect(el("versions-note").hidden).toBe(false);
-    expect(el("incremental-note").textContent).toContain("2026-10-07");
-    el("traffic-paper-btn").click();
-    expect(el<HTMLSelectElement>("traffic-metric").value).toBe("total_transfer_in_bytes");
-    el("extrapolation-paper-btn").click();
-    expect(el<HTMLSelectElement>("extrapolation-preload").value).toBe("false");
-    el("versions-paper-btn").click();
-    expect(el<HTMLSelectElement>("versions-axis").value).toBe("environment");
-    expect(el("versions-note").hidden).toBe(true);
   });
 
   it("narrows the selection from the filters", () => {
@@ -142,9 +155,7 @@ describe("main.ts boot", () => {
   });
 
   it("saves a figure's table and drawing", () => {
-    [...document.querySelectorAll<HTMLButtonElement>(".preset-button")]
-      .find((button) => button.textContent?.includes("all reference"))
-      ?.click();
+    manuscriptButton().click();
     const createObjectURL = vi.fn(() => "blob:x");
     vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});

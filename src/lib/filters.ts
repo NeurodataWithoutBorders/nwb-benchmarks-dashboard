@@ -116,59 +116,51 @@ export interface FilterState {
 
 export const ALL_DATA: FilterState = { from: null, to: null, applyExclusions: true, selected: {} };
 
-export interface Preset {
-  id: string;
-  label: string;
-  description: string;
-  state: FilterState;
+/** The two selections `nwb_benchmarks generate_figures` draws the manuscript's figures from. */
+export type ManuscriptSelection = "reference" | "timepoints";
+
+function paperSelection(environmentIds: string[]): FilterState {
+  return {
+    from: PAPER_EXCLUDE_OLDER,
+    to: null,
+    applyExclusions: true,
+    selected: { machine: [...LBL_MAC_MACHINE_IDS], environment: environmentIds },
+  };
 }
 
-export const PRESETS: Preset[] = [
-  {
-    id: "paper-reference",
-    label: `Paper: ${PAPER_REFERENCE_TIMEPOINT} environment`,
-    description: `The LBNL Mac, results since ${PAPER_EXCLUDE_OLDER}, the ${PAPER_REFERENCE_TIMEPOINT} environment only: the selection of the paper's Figures 3, 4a and 5.`,
-    state: {
-      from: PAPER_EXCLUDE_OLDER,
-      to: null,
-      applyExclusions: true,
-      selected: { machine: [...LBL_MAC_MACHINE_IDS], environment: [ENVIRONMENT_TIMEPOINTS[PAPER_REFERENCE_TIMEPOINT]] },
-    },
-  },
-  {
-    id: "paper-all",
-    label: "Paper: all reference environments",
-    description: `The LBNL Mac, results since ${PAPER_EXCLUDE_OLDER}, the ${Object.keys(ENVIRONMENT_TIMEPOINTS).length} dated reference environments: the selection of the paper's Figure 4b.`,
-    state: {
-      from: PAPER_EXCLUDE_OLDER,
-      to: null,
-      applyExclusions: true,
-      selected: { machine: [...LBL_MAC_MACHINE_IDS], environment: Object.values(ENVIRONMENT_TIMEPOINTS) },
-    },
-  },
-  {
-    id: "all",
-    label: "All results",
-    description: "Every machine, environment and date in the results.",
-    state: ALL_DATA,
-  },
-];
+export const MANUSCRIPT_SELECTIONS: Record<ManuscriptSelection, FilterState> = {
+  reference: paperSelection([ENVIRONMENT_TIMEPOINTS[PAPER_REFERENCE_TIMEPOINT]]),
+  timepoints: paperSelection(Object.values(ENVIRONMENT_TIMEPOINTS)),
+};
 
-export const DEFAULT_PRESET_ID = "paper-all";
+export type FigureId = "rankings" | "traffic" | "versions" | "extrapolation" | "incremental";
 
-export function presetById(id: string): Preset {
-  return PRESETS.find((preset) => preset.id === id) ?? PRESETS[0];
-}
+/** Which selection each figure takes in the manuscript view, as the Python pipeline draws them: the
+ * single-environment figures for the reference environment, the comparison across environments (and the
+ * incremental slicing figure, which only the later environments ran) for all the dated ones. */
+export const MANUSCRIPT_FIGURE_SELECTIONS: Record<FigureId, ManuscriptSelection> = {
+  rankings: "reference",
+  traffic: "reference",
+  extrapolation: "reference",
+  versions: "timepoints",
+  incremental: "timepoints",
+};
 
-function cloneState(state: FilterState): FilterState {
+export const MANUSCRIPT_DESCRIPTION =
+  `The manuscript's selections: the LBNL Mac, results since ${PAPER_EXCLUDE_OLDER}, ` +
+  `the ${PAPER_REFERENCE_TIMEPOINT} environment for Figures 3, 4a and 5, ` +
+  `and the ${Object.keys(ENVIRONMENT_TIMEPOINTS).length} dated environments for Figure 4b and incremental slicing.`;
+
+export function cloneState(state: FilterState): FilterState {
   return {
     ...state,
     selected: Object.fromEntries(Object.entries(state.selected).map(([key, values]) => [key, [...values]])),
   };
 }
 
+/** Every result: the dashboard's starting point. */
 export function defaultState(): FilterState {
-  return cloneState(presetById(DEFAULT_PRESET_ID).state);
+  return cloneState(ALL_DATA);
 }
 
 /** Whether two states select the same runs. */
@@ -342,10 +334,25 @@ export function applyFilters(db: Database, state: FilterState): Dataset {
 
 const RESERVED_PARAMS = new Set(["from", "to", "exclusions"]);
 
+/** `?manuscript`: the view that reproduces the manuscript's figures, each from its own selection. */
+export const MANUSCRIPT_PARAM = "manuscript";
+
+export function isManuscriptSearch(search: string): boolean {
+  return new URLSearchParams(search).has(MANUSCRIPT_PARAM);
+}
+
+/** The URL of the manuscript view: `?manuscript`, in place of any filters. */
+export function manuscriptSearch(search: string): string {
+  const params = new URLSearchParams(search);
+  for (const key of [...RESERVED_PARAMS, ...FACETS.map((facet) => facet.key)]) params.delete(key);
+  params.set(MANUSCRIPT_PARAM, "");
+  return `?${params.toString().replace(/=(?=&|$)/g, "")}`;
+}
+
 /** Writes the state into a copy of `search`, leaving params it does not own (such as `test`) alone. */
 export function stateToSearch(state: FilterState, search: string): string {
   const params = new URLSearchParams(search);
-  for (const key of [...RESERVED_PARAMS, ...FACETS.map((facet) => facet.key)]) params.delete(key);
+  for (const key of [MANUSCRIPT_PARAM, ...RESERVED_PARAMS, ...FACETS.map((facet) => facet.key)]) params.delete(key);
   if (state.from) params.set("from", state.from);
   if (state.to) params.set("to", state.to);
   if (!state.applyExclusions) params.set("exclusions", "off");

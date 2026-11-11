@@ -71,6 +71,11 @@ test.describe("the dashboard", () => {
     });
     await expect(page.locator("#dashboard")).toBeVisible();
     await expect(page.locator("#data-summary")).toContainText("from bundle.json.gz");
-    await expect(page.locator(".preset-button[aria-pressed='true']")).toHaveText("Paper: all reference environments");
+    await expect(page.locator(".preset-button[aria-pressed='true']")).toHaveText("All results");
+
+    await page.locator(".preset-button", { hasText: "Manuscript figures" }).click();
+    await expect(page).toHaveURL(/\?test&load_error&manuscript$/);
+    await expect(page.locator("#filter-summary")).toContainText("The manuscript's selections");
+    await expect(page.locator("#versions-figure")).toContainText("2024-06-30");
   });
 });

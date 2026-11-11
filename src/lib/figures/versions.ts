@@ -6,7 +6,7 @@
 
 import { MODALITY_ORDER, type Modality } from "../benchmarkNames";
 import { PACKAGES_OF_INTEREST } from "../curation";
-import { environmentLabel, type Database } from "../database";
+import type { Database } from "../database";
 import type { Dataset, Row } from "../filters";
 import { PYNWB_READ_ORDER, orderMethods } from "../methods";
 import { bootstrapMeanInterval, groupBy, summarize, type Summary } from "../stats";
@@ -56,11 +56,24 @@ export interface PerformanceAcrossVersions {
   panels: VersionPanel[];
 }
 
-function groupOf(row: Row, axis: string, db: Database): VersionGroup {
+/** The date of each environment's first run in the selection. */
+function firstRunDates(dataset: Dataset): Map<string, string> {
+  const dates = new Map<string, string>();
+  for (const run of dataset.runs) {
+    const date = run.timestamp.slice(0, 10);
+    const known = dates.get(run.environmentId);
+    if (known === undefined || date < known) dates.set(run.environmentId, date);
+  }
+  return dates;
+}
+
+function groupOf(row: Row, axis: string, db: Database, firstRuns: Map<string, string>): VersionGroup {
   const environmentId = row.sample.run.environmentId;
   const environment = db.environments.get(environmentId);
   if (axis === "environment") {
-    return { key: environmentId, label: environment?.timepoint ?? environmentLabel(environment, environmentId) };
+    // An environment the paper does not date is dated, as the paper dated its latest, by its first run.
+    const label = environment?.timepoint ?? `${firstRuns.get(environmentId)} (${environmentId.slice(0, 7)})`;
+    return { key: environmentId, label };
   }
   const version = axis === "python" ? environment?.pythonVersion : environment?.packagesOfInterest[axis.slice(4)];
   const label = version ?? (environment ? "not installed" : "unknown");
@@ -74,8 +87,9 @@ export function performanceAcrossVersions(
 ): PerformanceAcrossVersions {
   const rows = dataset.rows(benchmark).filter((row) => PYNWB_READ_ORDER.includes(row.clean) && row.modality !== null);
   const groupLabels = new Map<string, string>();
+  const firstRuns = firstRunDates(dataset);
   const keyed = rows.map((row) => {
-    const group = groupOf(row, axis, dataset.db);
+    const group = groupOf(row, axis, dataset.db, firstRuns);
     groupLabels.set(group.key, group.label);
     return { row, group: group.key };
   });

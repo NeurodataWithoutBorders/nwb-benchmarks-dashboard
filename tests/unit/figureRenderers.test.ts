@@ -127,13 +127,18 @@ describe("versions", () => {
     expect(VERSIONS_COLUMNS.map((column) => column.value(rows[0]))).toHaveLength(VERSIONS_COLUMNS.length);
   });
 
-  it("slants long group labels", () => {
-    renderVersions(
-      target,
-      performanceAcrossVersions(dataset, "time_remote_file_reading"),
-      "Software environment",
-      tooltip,
-    );
+  it("slants group labels too long for a narrow panel", () => {
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 200 });
+    try {
+      renderVersions(
+        target,
+        performanceAcrossVersions(dataset, "time_remote_file_reading"),
+        "Software environment",
+        tooltip,
+      );
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 0 });
+    }
     expect(target.querySelector("text[transform^='rotate(-35']")).not.toBeNull();
     renderVersions(
       target,

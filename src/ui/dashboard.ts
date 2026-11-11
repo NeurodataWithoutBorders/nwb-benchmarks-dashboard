@@ -11,14 +11,19 @@ import { methodRankings } from "../lib/figures/rankings";
 import { DEFAULT_NETWORK_METRIC, fileOpenTraffic, slicingTraffic } from "../lib/figures/traffic";
 import { VERSION_AXES, performanceAcrossVersions, type VersionsBenchmark } from "../lib/figures/versions";
 import {
-  ALL_DATA,
+  MANUSCRIPT_FIGURE_SELECTIONS,
+  MANUSCRIPT_SELECTIONS,
   applyFilters,
+  cloneState,
   defaultState,
-  presetById,
+  isManuscriptSearch,
+  manuscriptSearch,
   stateFromSearch,
   stateToSearch,
   type Dataset,
+  type FigureId,
   type FilterState,
+  type ManuscriptSelection,
 } from "../lib/filters";
 import { NETWORK_METRIC_LABELS } from "../lib/methods";
 import { createTooltip, renderLegend, setNote, type LegendEntry, type Tooltip } from "./charts/chrome";
@@ -76,7 +81,8 @@ function finish<T>(
 }
 
 export interface Dashboard {
-  /** Shows a newly loaded database, starting from the URL's filters or the default selection. */
+  /** Shows a newly loaded database: the manuscript view at `?manuscript`, else the URL's filters, else
+   * every result. */
   show: (db: Database, source: string) => void;
 }
 
@@ -88,6 +94,8 @@ export function createDashboard(
   let db: Database | null = null;
   let state: FilterState = defaultState();
   let dataset: Dataset | null = null;
+  /** In the manuscript view each figure draws from its own selection (MANUSCRIPT_FIGURE_SELECTIONS). */
+  let manuscript: Map<ManuscriptSelection, Dataset> | null = null;
 
   fillSelect(
     els.rankings.scale,
@@ -122,7 +130,10 @@ export function createDashboard(
     "linear",
   );
 
-  const filters = initFilters(els.filters, (next) => setState(next));
+  const filters = initFilters(els.filters, {
+    onChange: (next) => setState(next),
+    onManuscript: () => showManuscript(),
+  });
 
   function renderRankingsCard(data: Dataset): void {
     const card = els.rankings;
@@ -160,7 +171,7 @@ export function createDashboard(
     let note: string | null = null;
     if (rows.length === 0) note = "No PyNWB timing results match the filters.";
     else if (figure.groups.length < 2) {
-      note = `The selection holds a single ${axis.id === "environment" ? "software environment" : axis.label}: select more in the filters to compare them. The paper compares its four dated environments.`;
+      note = `The selection holds a single ${axis.id === "environment" ? "software environment" : axis.label}: select more in the filters to compare them.`;
     }
     setNote(card.note, note);
     if (rows.length) renderVersions(card.figure, figure, axis.label, tooltip);
@@ -223,18 +234,19 @@ export function createDashboard(
     );
   }
 
-  const renderers: [FigureCardElements, (data: Dataset) => void][] = [
-    [els.rankings, renderRankingsCard],
-    [els.traffic, renderTrafficCard],
-    [els.versions, renderVersionsCard],
-    [els.extrapolation, renderExtrapolationCard],
-    [els.incremental, renderIncrementalCard],
+  const renderers: [FigureCardElements, (data: Dataset) => void, FigureId][] = [
+    [els.rankings, renderRankingsCard, "rankings"],
+    [els.traffic, renderTrafficCard, "traffic"],
+    [els.versions, renderVersionsCard, "versions"],
+    [els.extrapolation, renderExtrapolationCard, "extrapolation"],
+    [els.incremental, renderIncrementalCard, "incremental"],
   ];
 
-  function renderFigure(card: FigureCardElements, render: (data: Dataset) => void): void {
-    if (!dataset) return;
+  function renderFigure(card: FigureCardElements, render: (data: Dataset) => void, figure: FigureId): void {
+    const data = manuscript?.get(MANUSCRIPT_FIGURE_SELECTIONS[figure]) ?? dataset;
+    if (!data) return;
     try {
-      render(dataset);
+      render(data);
     } catch (error) {
       console.error(error);
       card.figure.replaceChildren();
@@ -244,23 +256,51 @@ export function createDashboard(
 
   function renderAll(): void {
     if (!db || !dataset) return;
-    filters.render(db, state, dataset);
-    for (const [card, render] of renderers) renderFigure(card, render);
+    filters.render(db, state, dataset, manuscript !== null);
+    for (const renderer of renderers) renderFigure(...renderer);
   }
 
-  function setState(next: FilterState): void {
-    if (!db) return;
-    state = next;
-    dataset = applyFilters(db, state);
-    const search = stateToSearch(state, location.search);
+  function navigate(search: string): void {
     history.replaceState(null, "", `${location.pathname}${search}${location.hash}`);
     tooltip.hide();
     renderAll();
   }
 
-  for (const [card, render] of renderers) {
-    for (const control of card.card.querySelectorAll("select"))
-      control.addEventListener("change", () => renderFigure(card, render));
+  /** Any change to the filters leaves the manuscript view for the edited selection. */
+  function setState(next: FilterState): void {
+    if (!db) return;
+    manuscript = null;
+    state = next;
+    dataset = applyFilters(db, state);
+    navigate(stateToSearch(state, location.search));
+  }
+
+  /** The manuscript's figures, each from its own selection and with the paper's figure settings. */
+  function showManuscript(): void {
+    if (!db) return;
+    const loaded = db;
+    manuscript = new Map(
+      Object.entries(MANUSCRIPT_SELECTIONS).map(([name, selection]) => [
+        name as ManuscriptSelection,
+        applyFilters(loaded, selection),
+      ]),
+    );
+    // The filters show the reference selection, the one most figures use, to edit from.
+    state = cloneState(MANUSCRIPT_SELECTIONS.reference);
+    dataset = manuscript.get("reference") ?? null;
+    els.rankings.scale.value = "paper";
+    els.traffic.metric.value = DEFAULT_NETWORK_METRIC;
+    els.traffic.preload.value = "false";
+    els.versions.benchmark.value = "time_remote_file_reading";
+    els.versions.axis.value = "environment";
+    els.extrapolation.preload.value = "false";
+    els.incremental.scale.value = "linear";
+    navigate(manuscriptSearch(location.search));
+  }
+
+  for (const renderer of renderers) {
+    for (const control of renderer[0].card.querySelectorAll("select"))
+      control.addEventListener("change", () => renderFigure(...renderer));
   }
 
   // Re-draws a figure when its width changes, so its text stays at its real size.
@@ -279,40 +319,9 @@ export function createDashboard(
     for (const [card] of renderers) observer.observe(card.figure);
   }
 
-  const applyPaper = (presetId: string, adjust: () => void): void => {
-    adjust();
-    setState(structuredClone(presetById(presetId).state));
-  };
-  els.rankings.paperBtn.addEventListener("click", () =>
-    applyPaper("paper-reference", () => {
-      els.rankings.scale.value = "paper";
-    }),
-  );
-  els.traffic.paperBtn.addEventListener("click", () =>
-    applyPaper("paper-reference", () => {
-      els.traffic.metric.value = DEFAULT_NETWORK_METRIC;
-      els.traffic.preload.value = "false";
-    }),
-  );
-  els.versions.paperBtn.addEventListener("click", () =>
-    applyPaper("paper-all", () => {
-      els.versions.benchmark.value = "time_remote_file_reading";
-      els.versions.axis.value = "environment";
-    }),
-  );
-  els.extrapolation.paperBtn.addEventListener("click", () =>
-    applyPaper("paper-reference", () => {
-      els.extrapolation.preload.value = "false";
-    }),
-  );
-
   return {
     show(loaded, source) {
       db = loaded;
-      const fromUrl = stateFromSearch(location.search);
-      let initial = fromUrl ?? defaultState();
-      // A bundle without the paper's machine (a custom one, or the test data) starts from everything.
-      if (!fromUrl && applyFilters(loaded, initial).runs.length === 0) initial = structuredClone(ALL_DATA);
       const latest = latestRunDate(loaded.runs);
       const skipped = loaded.skipped.outdated
         ? ` ${loaded.skipped.outdated.toLocaleString("en-US")} results files in formats older than the figures read are left out.`
@@ -320,7 +329,8 @@ export function createDashboard(
       els.dataSummary.textContent =
         `${loaded.runs.length.toLocaleString("en-US")} results files from ${loaded.machines.size} machines and ${loaded.environments.size} software environments` +
         `${latest ? `, the latest from ${latest}` : ""}, ${source}.${skipped}`;
-      setState(initial);
+      if (isManuscriptSearch(location.search)) showManuscript();
+      else setState(stateFromSearch(location.search) ?? defaultState());
     },
   };
 }

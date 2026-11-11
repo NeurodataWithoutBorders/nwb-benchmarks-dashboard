@@ -1,12 +1,14 @@
-// The filters card: the paper's selections as presets, the date range, the curated exclusions, and
-// one checklist per facet of run metadata, each value counted against the other filters.
+// The filters card: every result or the manuscript view, the date range, the curated exclusions,
+// and one checklist per facet of run metadata, each value counted against the other filters.
 
 import { button, h } from "@brain-bbqs/ui";
 import { EXCLUDED_SAMPLES } from "../lib/curation";
 import type { Database } from "../lib/database";
 import {
+  ALL_DATA,
   FACETS,
-  PRESETS,
+  MANUSCRIPT_DESCRIPTION,
+  cloneState,
   describeDataset,
   facetOptions,
   sameState,
@@ -32,13 +34,19 @@ function facetSummary(options: FacetOption[]): string {
 }
 
 export interface FiltersView {
-  render: (db: Database, state: FilterState, dataset: Dataset) => void;
+  render: (db: Database, state: FilterState, dataset: Dataset, manuscript: boolean) => void;
+}
+
+export interface FiltersHandlers {
+  onChange: (state: FilterState) => void;
+  /** Asks for the manuscript view, whose figures each take their own selection. */
+  onManuscript: () => void;
 }
 
 /** The facets shown up front; the rest (package versions and the like) sit behind "More". */
 const PRIMARY_FACETS = ["machine", "system", "cpu", "environment", "python"];
 
-export function initFilters(els: FilterElements, onChange: (state: FilterState) => void): FiltersView {
+export function initFilters(els: FilterElements, { onChange, onManuscript }: FiltersHandlers): FiltersView {
   const openFacets = new Set<string>();
   let moreOpen = false;
   let current: FilterState | null = null;
@@ -54,16 +62,16 @@ export function initFilters(els: FilterElements, onChange: (state: FilterState) 
   });
   els.exclusionsLabel.textContent = `Leave out the ${EXCLUDED_SAMPLES.length} curated outlier samples`;
 
-  function renderPresets(state: FilterState): void {
-    els.presetButtons.replaceChildren(
-      ...PRESETS.map((preset) => {
-        const presetButton = button("small preset-button", preset.label);
-        presetButton.title = preset.description;
-        presetButton.setAttribute("aria-pressed", String(sameState(state, preset.state)));
-        presetButton.addEventListener("click", () => onChange(structuredClone(preset.state)));
-        return presetButton;
-      }),
-    );
+  function renderPresets(state: FilterState, manuscript: boolean): void {
+    const all = button("small preset-button", "All results");
+    all.title = "Every machine, environment and date in the results.";
+    all.setAttribute("aria-pressed", String(!manuscript && sameState(state, ALL_DATA)));
+    all.addEventListener("click", () => onChange(cloneState(ALL_DATA)));
+    const paper = button("small preset-button", "Manuscript figures");
+    paper.title = MANUSCRIPT_DESCRIPTION;
+    paper.setAttribute("aria-pressed", String(manuscript));
+    paper.addEventListener("click", onManuscript);
+    els.presetButtons.replaceChildren(all, paper);
   }
 
   function renderFacet(state: FilterState, key: string, label: string, options: FacetOption[]): HTMLDetailsElement {
@@ -108,9 +116,9 @@ export function initFilters(els: FilterElements, onChange: (state: FilterState) 
   }
 
   return {
-    render(db, state, dataset) {
+    render(db, state, dataset, manuscript) {
       current = state;
-      renderPresets(state);
+      renderPresets(state, manuscript);
       const dates = db.runs.map((run) => run.timestamp.slice(0, 10));
       if (dates.length) {
         els.from.min = els.to.min = dates[0];
@@ -144,7 +152,7 @@ export function initFilters(els: FilterElements, onChange: (state: FilterState) 
         ...FACETS.filter((facet) => PRIMARY_FACETS.includes(facet.key)).map(facetElement),
         more,
       );
-      els.summary.textContent = describeDataset(dataset);
+      els.summary.textContent = manuscript ? MANUSCRIPT_DESCRIPTION : describeDataset(dataset);
     },
   };
 }

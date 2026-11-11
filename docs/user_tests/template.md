@@ -18,8 +18,8 @@ Copy this file to `docs/user_tests/<tester>.md`, fill it in, and open it as a PR
 
 ## Filters
 
-- [ ] The page opens on "Paper: all reference environments", and the address bar carries its filters
-- [ ] "Paper: 2025-09-01 environment" shows the same numbers as the paper's Figure 3
+- [ ] The page opens on "All results", with no filters in the address bar
+- [ ] "Manuscript figures" (or opening the page at `?manuscript`) shows the same numbers as the paper's Figure 3, and Figure 4b compares the dated environments
 - [ ] Narrowing a facet (a machine, an environment, a package version) updates every figure and the counts beside the other facets' values
 - [ ] The date range and the curated-exclusions checkbox change the figures
 - [ ] Reloading the page, or opening its address in another tab, keeps the filters
@@ -28,7 +28,6 @@ Copy this file to `docs/user_tests/<tester>.md`, fill it in, and open it as a PR
 
 - [ ] Each figure's own controls (color scale, network metric, slicing, benchmark, compare by, time axis) redraw it
 - [ ] Hovering a cell, point or cross shows its values
-- [ ] "Show as in the paper" switches to the paper's selection for that figure
 - [ ] "Table" lists the figure's numbers, and "Download CSV" and "Download SVG" save them
 - [ ] A selection a figure cannot draw (e.g. one environment for the versions figure) says why instead
 

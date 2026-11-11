@@ -52,24 +52,20 @@ export function getElements() {
 
     rankings: {
       ...figureCard("rankings"),
-      paperBtn: required<HTMLButtonElement>("rankings-paper-btn"),
       scale: required<HTMLSelectElement>("rankings-scale"),
     },
     traffic: {
       ...figureCard("traffic"),
-      paperBtn: required<HTMLButtonElement>("traffic-paper-btn"),
       metric: required<HTMLSelectElement>("traffic-metric"),
       preload: required<HTMLSelectElement>("traffic-preload"),
     },
     versions: {
       ...figureCard("versions"),
-      paperBtn: required<HTMLButtonElement>("versions-paper-btn"),
       benchmark: required<HTMLSelectElement>("versions-benchmark"),
       axis: required<HTMLSelectElement>("versions-axis"),
     },
     extrapolation: {
       ...figureCard("extrapolation"),
-      paperBtn: required<HTMLButtonElement>("extrapolation-paper-btn"),
       preload: required<HTMLSelectElement>("extrapolation-preload"),
     },
     incremental: {

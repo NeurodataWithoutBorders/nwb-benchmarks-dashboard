@@ -45,7 +45,9 @@ describe("performanceAcrossVersions", () => {
     for (const key of Object.keys(bundle)) if (key.startsWith("environments/")) delete bundle[key];
     const bare = applyFilters(readDatabase(bundle), ALL_DATA);
     expect(performanceAcrossVersions(bare, "time_remote_file_reading", "pkg-h5py").groups[0].label).toBe("unknown");
-    expect(performanceAcrossVersions(bare, "time_remote_file_reading").groups[0].label).toMatch(/^unknown environment/);
+    expect(performanceAcrossVersions(bare, "time_remote_file_reading").groups[0].label).toMatch(
+      /^2026-01-\d\d \(test-a-\)$/,
+    );
   });
 });
 

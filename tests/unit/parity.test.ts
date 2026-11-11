@@ -2,9 +2,9 @@
 // data (tests/fixtures/parity-expected.json, written by tests/parity/generate_expected.py).
 import { describe, expect, it } from "vitest";
 import { benchmarkNameParts, modalityOf, scalingValueOf } from "../../src/lib/benchmarkNames";
-import { ENVIRONMENT_TIMEPOINTS, LBL_MAC_MACHINE_IDS, PAPER_EXCLUDE_OLDER } from "../../src/lib/curation";
+import { LBL_MAC_MACHINE_IDS, PAPER_EXCLUDE_OLDER } from "../../src/lib/curation";
 import { readDatabase } from "../../src/lib/database";
-import { applyFilters, type FilterState } from "../../src/lib/filters";
+import { MANUSCRIPT_SELECTIONS, applyFilters, type FilterState } from "../../src/lib/filters";
 import { extrapolations } from "../../src/lib/figures/extrapolation";
 import { incrementalOverview, incrementalSlicing } from "../../src/lib/figures/incremental";
 import { methodRankings } from "../../src/lib/figures/rankings";
@@ -65,6 +65,12 @@ describe("benchmark name derivation, for every name in the published results", (
       const sliceRange = row.first_slice === null ? undefined : [row.first_slice as string];
       expect(scalingValueOf(sliceRange ? { slice_range: sliceRange } : {})).toBe(row.scaling_value);
     }
+  });
+});
+
+describe("the manuscript view", () => {
+  it("selects what the Python pipeline selects for its reference environment", () => {
+    expect(MANUSCRIPT_SELECTIONS.reference).toEqual(paperState([expected.contexts["2025-09-01"].environment_id]));
   });
 });
 
@@ -176,7 +182,7 @@ describe.each(Object.entries(expected.contexts))("the %s environment", (_label, 
 
 describe.each(Object.entries(expected.performance_over_time))("Figure 4b, %s", (benchmark, rows) => {
   it("matches every environment's mean, per method and modality", () => {
-    const dataset = applyFilters(db, paperState(Object.values(ENVIRONMENT_TIMEPOINTS)));
+    const dataset = applyFilters(db, MANUSCRIPT_SELECTIONS.timepoints);
     const figure = performanceAcrossVersions(dataset, benchmark as VersionsBenchmark);
     const points = figure.panels.flatMap((panel) =>
       panel.series.flatMap((series) =>

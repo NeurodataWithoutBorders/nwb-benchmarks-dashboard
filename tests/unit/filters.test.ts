@@ -3,13 +3,17 @@ import { ENVIRONMENT_TIMEPOINTS, EXCLUDED_SAMPLES, LBL_MAC_MACHINE_IDS } from ".
 import { readDatabase } from "../../src/lib/database";
 import {
   ALL_DATA,
-  DEFAULT_PRESET_ID,
   FACETS,
+  MANUSCRIPT_DESCRIPTION,
+  MANUSCRIPT_FIGURE_SELECTIONS,
+  MANUSCRIPT_SELECTIONS,
   applyFilters,
+  cloneState,
   defaultState,
   describeDataset,
   facetOptions,
-  presetById,
+  isManuscriptSearch,
+  manuscriptSearch,
   sameState,
   stateFromSearch,
   stateToSearch,
@@ -19,19 +23,33 @@ import { readParityBundle } from "./helpers/parity";
 
 const db = readDatabase(readParityBundle());
 
-describe("presets", () => {
-  it("defaults to the paper's selection across its reference environments", () => {
+describe("the starting selection and the manuscript's", () => {
+  it("starts from every result, as a copy", () => {
     const state = defaultState();
-    expect(DEFAULT_PRESET_ID).toBe("paper-all");
-    expect(state.selected.machine).toEqual(LBL_MAC_MACHINE_IDS);
-    expect(state.selected.environment).toEqual(Object.values(ENVIRONMENT_TIMEPOINTS));
-    // A copy: changing it leaves the preset alone.
-    state.selected.machine.push("x");
-    expect(presetById("paper-all").state.selected.machine).toEqual(LBL_MAC_MACHINE_IDS);
+    expect(state).toEqual(ALL_DATA);
+    state.selected.machine = ["x"];
+    expect(ALL_DATA.selected).toEqual({});
+    const manuscript = cloneState(MANUSCRIPT_SELECTIONS.reference);
+    manuscript.selected.machine.push("x");
+    expect(MANUSCRIPT_SELECTIONS.reference.selected.machine).toEqual(LBL_MAC_MACHINE_IDS);
   });
 
-  it("falls back to the first preset for an unknown id", () => {
-    expect(presetById("nope").id).toBe("paper-reference");
+  it("takes each manuscript figure from the Python pipeline's selection", () => {
+    expect(MANUSCRIPT_SELECTIONS.reference).toEqual({
+      from: "2025-11-01",
+      to: null,
+      applyExclusions: true,
+      selected: { machine: LBL_MAC_MACHINE_IDS, environment: [ENVIRONMENT_TIMEPOINTS["2025-09-01"]] },
+    });
+    expect(MANUSCRIPT_SELECTIONS.timepoints.selected.environment).toEqual(Object.values(ENVIRONMENT_TIMEPOINTS));
+    expect(MANUSCRIPT_FIGURE_SELECTIONS).toEqual({
+      rankings: "reference",
+      traffic: "reference",
+      extrapolation: "reference",
+      versions: "timepoints",
+      incremental: "timepoints",
+    });
+    expect(MANUSCRIPT_DESCRIPTION).toContain("the 2025-09-01 environment for Figures 3, 4a and 5");
   });
 
   it("compares states regardless of order", () => {
@@ -151,6 +169,14 @@ describe("the URL form of a state", () => {
       "?test&mock_data&from=2025-11-01&to=2026-01-31&exclusions=off&machine=a&machine=b&pkg-h5py=3.14.0",
     );
     expect(stateFromSearch(search)).toEqual(state);
+  });
+
+  it("has a manuscript form in place of the filters", () => {
+    expect(manuscriptSearch("?test&machine=a&from=2025-01-01")).toBe("?test&manuscript");
+    expect(isManuscriptSearch("?test&manuscript")).toBe(true);
+    expect(isManuscriptSearch("?test")).toBe(false);
+    expect(stateFromSearch("?manuscript")).toBe(null);
+    expect(stateToSearch({ ...ALL_DATA, selected: { machine: ["a"] } }, "?manuscript")).toBe("?machine=a");
   });
 
   it("is empty for the default of everything, and null when the URL names no filter", () => {

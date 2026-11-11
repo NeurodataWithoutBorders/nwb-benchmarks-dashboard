@@ -37,9 +37,11 @@ function drawPanel(
   const longest = Math.max(...labels.map((label) => label.length));
   // Long labels (package versions are short, environment labels are not) turn to fit.
   const slanted = longest * 6.5 > (width - 80) / Math.max(1, groups.length);
+  // Room under the axis for the longest slanted label (35 degrees, about 6 px a character).
+  const slantRoom = slanted ? Math.ceil(longest * 6 * Math.sin((35 * Math.PI) / 180)) + 16 : 0;
   const panelView = createPanel({
     width,
-    height: Math.round(Math.min(380, Math.max(280, width * 0.7))) + (slanted ? 50 : 0),
+    height: Math.round(Math.min(380, Math.max(280, width * 0.7))) + slantRoom,
     title: panelTitle(panel),
     x: {
       domain: [-0.5, groups.length - 0.5],
@@ -48,7 +50,7 @@ function drawPanel(
       format: (value) => (slanted ? "" : (labels[Math.round(value)] ?? "")),
     },
     y: { domain: niceDomain(Math.max(0, range[0]), range[1], 4), label: "Time (s)", format: formatTick },
-    margin: slanted ? { bottom: 94 } : undefined,
+    margin: slanted ? { bottom: 44 + slantRoom } : undefined,
     description: `${panelTitle(panel)}: mean time per method across ${axisLabel.toLowerCase()}`,
   });
   if (slanted) {
