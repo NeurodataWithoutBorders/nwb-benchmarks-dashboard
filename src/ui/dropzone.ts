@@ -1,9 +1,11 @@
 import { bindDropzone, showDropzoneReject } from "@brain-bbqs/ui";
+import { BundleError } from "../lib/bundle";
 import type { AppElements } from "./elements";
 
 // A blank line (\n\n) renders as <br><br>; see showDropzoneReject. Splitting the "what went wrong"
 // and "what to do instead" halves onto their own lines keeps the fix visible at a glance.
-const REJECT_NOT_A_FILE = "That wasn't a file.\n\nDrop a single file, or use the browse button instead.";
+const REJECT_NOT_A_FILE =
+  "That wasn't a file.\n\nDrop the results bundle (bundle.json.gz), or use the browse button instead.";
 
 /**
  * Wires the file dropzone: a click anywhere on it (or on its browse button) opens the file picker,
@@ -30,5 +32,15 @@ export function initDropzone(els: AppElements, onFile: (file: File) => void): vo
     input: els.fileInput,
     browseButton: els.browseFileBtn,
     onPick: (files) => accept(files[0]),
+  });
+}
+
+/** A dropped file's bytes, refused with a reader-facing message if the browser cannot read it. */
+export function readFileBytes(file: Blob): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+    reader.onerror = () => reject(new BundleError("The file could not be read."));
+    reader.readAsArrayBuffer(file);
   });
 }

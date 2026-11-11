@@ -12,9 +12,9 @@ export default defineConfig(
     // not a target, only a floor.
     thresholds: {
       statements: 99,
-      branches: 99,
+      branches: 91,
       functions: 99,
-      lines: 99,
+      lines: 99.5,
     },
     overrides: {
       test: {

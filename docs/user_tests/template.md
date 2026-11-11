@@ -9,16 +9,28 @@ A basic manual pass through the app before a release or after a significant chan
 Run through this on the deployed site.
 Copy this file to `docs/user_tests/<tester>.md`, fill it in, and open it as a PR titled `User test: <Tester>`.
 
-## Loading a file
+## Loading the results
 
-- [ ] Dragging and dropping a file onto the dropzone loads it into the summary card
-- [ ] Using the browse button loads a file the same way
-- [ ] Dropping something that is not a file (dragged text) shows the refusal message instead of doing nothing
-- [ ] "Change file" returns to the picker
+- [ ] Opening the page downloads the latest results, showing progress, and then shows the dashboard
+- [ ] "Load another bundle" returns to the loading card, and "Download the latest results" loads them again
+- [ ] Dropping a downloaded `bundle.json.gz` (from the `dist` branch of nwb-benchmarks-results) loads it instead
+- [ ] Dropping something that is not a bundle says why it was refused
 
-## The app
+## Filters
 
-Add one section per feature of the app, with one checkbox per thing a person would do with it.
+- [ ] The page opens on "Paper: all reference environments", and the address bar carries its filters
+- [ ] "Paper: 2025-09-01 environment" shows the same numbers as the paper's Figure 3
+- [ ] Narrowing a facet (a machine, an environment, a package version) updates every figure and the counts beside the other facets' values
+- [ ] The date range and the curated-exclusions checkbox change the figures
+- [ ] Reloading the page, or opening its address in another tab, keeps the filters
+
+## Figures
+
+- [ ] Each figure's own controls (color scale, network metric, slicing, benchmark, compare by, time axis) redraw it
+- [ ] Hovering a cell, point or cross shows its values
+- [ ] "Show as in the paper" switches to the paper's selection for that figure
+- [ ] "Table" lists the figure's numbers, and "Download CSV" and "Download SVG" save them
+- [ ] A selection a figure cannot draw (e.g. one environment for the versions figure) says why instead
 
 ## Cross-cutting
 

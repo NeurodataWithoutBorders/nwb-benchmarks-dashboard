@@ -1,0 +1,328 @@
+// The dashboard once results are loaded: the data summary, the filters, and the five figure cards,
+// each recomputed from the filtered data whenever the filters or its own controls change.
+
+import { h } from "@brain-bbqs/ui";
+import { RESULTS_REPOSITORY } from "../lib/bundle";
+import type { Column } from "../lib/csv";
+import { latestRunDate, type Database } from "../lib/database";
+import { extrapolations } from "../lib/figures/extrapolation";
+import { incrementalSlicing } from "../lib/figures/incremental";
+import { methodRankings } from "../lib/figures/rankings";
+import { DEFAULT_NETWORK_METRIC, fileOpenTraffic, slicingTraffic } from "../lib/figures/traffic";
+import { VERSION_AXES, performanceAcrossVersions, type VersionsBenchmark } from "../lib/figures/versions";
+import {
+  ALL_DATA,
+  applyFilters,
+  defaultState,
+  presetById,
+  stateFromSearch,
+  stateToSearch,
+  type Dataset,
+  type FilterState,
+} from "../lib/filters";
+import { NETWORK_METRIC_LABELS } from "../lib/methods";
+import { createTooltip, renderLegend, setNote, type LegendEntry, type Tooltip } from "./charts/chrome";
+import type { AppElements, FigureCardElements } from "./elements";
+import { figureSvg } from "./export";
+import { initFilters } from "./filters";
+import { EXTRAPOLATION_COLUMNS, extrapolationLegend, renderExtrapolation, uncrossed } from "./figures/extrapolation";
+import {
+  INCREMENTAL_COLUMNS,
+  incrementalLegend,
+  incrementalRows,
+  renderIncremental,
+  type TimeAxis,
+} from "./figures/incremental";
+import { RANKINGS_COLUMNS, rankingsRows, renderRankings, type HeatmapScale } from "./figures/rankings";
+import { TRAFFIC_COLUMNS, renderTraffic, trafficLegend, trafficRows } from "./figures/traffic";
+import { VERSIONS_COLUMNS, renderVersions, versionsLegend, versionsRows } from "./figures/versions";
+import { downloadCsv, downloadText, fillTable } from "./table";
+
+function fillSelect(select: HTMLSelectElement, options: [string, string][], value: string): void {
+  select.replaceChildren(
+    ...options.map(([optionValue, label]) => {
+      const option = h("option", null, label);
+      option.value = optionValue;
+      return option;
+    }),
+  );
+  select.value = value;
+}
+
+const PRELOAD_OPTIONS: [string, string][] = [
+  ["false", "Not preloaded"],
+  ["true", "Preloaded"],
+];
+
+/** Writes the current figure's data into its card's table and download buttons. */
+function wireOutputs<T>(card: FigureCardElements, name: string, columns: Column<T>[], rows: T[], title: string): void {
+  fillTable(card.table, columns, rows);
+  card.csvBtn.disabled = rows.length === 0;
+  card.csvBtn.onclick = () => downloadCsv(`${name}.csv`, columns, rows);
+  card.svgBtn.disabled = rows.length === 0;
+  card.svgBtn.onclick = () => downloadText(`${name}.svg`, figureSvg(card.figure, card.legend, title), "image/svg+xml");
+}
+
+function finish<T>(
+  card: FigureCardElements,
+  name: string,
+  title: string,
+  legend: LegendEntry[],
+  columns: Column<T>[],
+  rows: T[],
+): void {
+  renderLegend(card.legend, rows.length ? legend : []);
+  wireOutputs(card, name, columns, rows, title);
+}
+
+export interface Dashboard {
+  /** Shows a newly loaded database, starting from the URL's filters or the default selection. */
+  show: (db: Database, source: string) => void;
+}
+
+export function createDashboard(
+  els: AppElements,
+  location: { search: string; hash: string; pathname: string },
+): Dashboard {
+  const tooltip: Tooltip = createTooltip(els.tooltip);
+  let db: Database | null = null;
+  let state: FilterState = defaultState();
+  let dataset: Dataset | null = null;
+
+  fillSelect(
+    els.rankings.scale,
+    [
+      ["paper", "The paper's (0–4 s, 0–200 s, 0–10 s)"],
+      ["data", "Fitted to the data"],
+    ],
+    "paper",
+  );
+  fillSelect(els.traffic.metric, Object.entries(NETWORK_METRIC_LABELS), DEFAULT_NETWORK_METRIC);
+  fillSelect(els.traffic.preload, PRELOAD_OPTIONS, "false");
+  fillSelect(
+    els.versions.benchmark,
+    [
+      ["time_remote_file_reading", "Remote file opening, PyNWB"],
+      ["time_remote_slicing", "Remote slicing, PyNWB"],
+    ],
+    "time_remote_file_reading",
+  );
+  fillSelect(
+    els.versions.axis,
+    VERSION_AXES.map((axis) => [axis.id, axis.label]),
+    "environment",
+  );
+  fillSelect(els.extrapolation.preload, PRELOAD_OPTIONS, "false");
+  fillSelect(
+    els.incremental.scale,
+    [
+      ["linear", "Linear"],
+      ["log", "Logarithmic"],
+    ],
+    "linear",
+  );
+
+  const filters = initFilters(els.filters, (next) => setState(next));
+
+  function renderRankingsCard(data: Dataset): void {
+    const card = els.rankings;
+    const panels = methodRankings(data);
+    const rows = rankingsRows(panels);
+    setNote(card.note, rows.length ? null : "No remote file-opening or slicing results match the filters.");
+    renderRankings(card.figure, rows.length ? panels : [], els.rankings.scale.value as HeatmapScale, tooltip);
+    finish(card, "method-rankings", "Which method is fastest?", [], RANKINGS_COLUMNS, rows);
+  }
+
+  function renderTrafficCard(data: Dataset): void {
+    const card = els.traffic;
+    const metric = card.metric.value;
+    const fileOpen = [fileOpenTraffic(data, "backend", metric), fileOpenTraffic(data, "pynwb", metric)];
+    const slicing = slicingTraffic(data, card.preload.value === "true", metric);
+    const rows = trafficRows(fileOpen, slicing);
+    setNote(card.note, rows.length ? null : "No pairs of network-tracking and timing results match the filters.");
+    if (rows.length) renderTraffic(card.figure, fileOpen, slicing, tooltip);
+    else card.figure.replaceChildren();
+    finish(
+      card,
+      "network-traffic-vs-runtime",
+      "What makes some methods faster?",
+      trafficLegend(fileOpen, slicing),
+      TRAFFIC_COLUMNS,
+      rows,
+    );
+  }
+
+  function renderVersionsCard(data: Dataset): void {
+    const card = els.versions;
+    const axis = VERSION_AXES.find((candidate) => candidate.id === card.axis.value) ?? VERSION_AXES[0];
+    const figure = performanceAcrossVersions(data, card.benchmark.value as VersionsBenchmark, axis.id);
+    const rows = versionsRows(figure);
+    let note: string | null = null;
+    if (rows.length === 0) note = "No PyNWB timing results match the filters.";
+    else if (figure.groups.length < 2) {
+      note = `The selection holds a single ${axis.id === "environment" ? "software environment" : axis.label}: select more in the filters to compare them. The paper compares its four dated environments.`;
+    }
+    setNote(card.note, note);
+    if (rows.length) renderVersions(card.figure, figure, axis.label, tooltip);
+    else card.figure.replaceChildren();
+    finish(
+      card,
+      "performance-across-versions",
+      "How does performance change across versions?",
+      versionsLegend(figure),
+      VERSIONS_COLUMNS,
+      rows,
+    );
+  }
+
+  function renderExtrapolationCard(data: Dataset): void {
+    const card = els.extrapolation;
+    const preloaded = card.preload.value === "true";
+    const fits = extrapolations(data);
+    const missing = uncrossed(fits, preloaded);
+    let note: string | null = null;
+    if (fits.length === 0)
+      note =
+        "Comparing needs remote and local slicing, local file opening and download results; the filters leave none.";
+    else if (missing.length) {
+      const list = missing.join(", ");
+      note = `No crossover in the positive quadrant, so not drawn: ${list}${list.endsWith(".") ? "" : "."}`;
+    }
+    setNote(card.note, note);
+    if (fits.length) renderExtrapolation(card.figure, fits, preloaded, tooltip);
+    else card.figure.replaceChildren();
+    finish(
+      card,
+      "download-vs-streaming-extrapolation",
+      "When is downloading first faster than streaming?",
+      extrapolationLegend(fits, preloaded),
+      EXTRAPOLATION_COLUMNS,
+      fits.filter((fit) => fit.isPreloaded === preloaded),
+    );
+  }
+
+  function renderIncrementalCard(data: Dataset): void {
+    const card = els.incremental;
+    const panels = incrementalSlicing(data);
+    const rows = incrementalRows(panels);
+    setNote(
+      card.note,
+      rows.length
+        ? null
+        : "No incremental slicing results match the filters. The benchmark first ran in the 2026-10-07 environment.",
+    );
+    if (rows.length) renderIncremental(card.figure, panels, card.scale.value as TimeAxis, tooltip);
+    else card.figure.replaceChildren();
+    finish(
+      card,
+      "incremental-slicing",
+      "Streaming a whole file, slice by slice",
+      incrementalLegend(panels),
+      INCREMENTAL_COLUMNS,
+      rows,
+    );
+  }
+
+  const renderers: [FigureCardElements, (data: Dataset) => void][] = [
+    [els.rankings, renderRankingsCard],
+    [els.traffic, renderTrafficCard],
+    [els.versions, renderVersionsCard],
+    [els.extrapolation, renderExtrapolationCard],
+    [els.incremental, renderIncrementalCard],
+  ];
+
+  function renderFigure(card: FigureCardElements, render: (data: Dataset) => void): void {
+    if (!dataset) return;
+    try {
+      render(dataset);
+    } catch (error) {
+      console.error(error);
+      card.figure.replaceChildren();
+      setNote(card.note, `This figure could not be drawn: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  function renderAll(): void {
+    if (!db || !dataset) return;
+    filters.render(db, state, dataset);
+    for (const [card, render] of renderers) renderFigure(card, render);
+  }
+
+  function setState(next: FilterState): void {
+    if (!db) return;
+    state = next;
+    dataset = applyFilters(db, state);
+    const search = stateToSearch(state, location.search);
+    history.replaceState(null, "", `${location.pathname}${search}${location.hash}`);
+    tooltip.hide();
+    renderAll();
+  }
+
+  for (const [card, render] of renderers) {
+    for (const control of card.card.querySelectorAll("select"))
+      control.addEventListener("change", () => renderFigure(card, render));
+  }
+
+  // Re-draws a figure when its width changes, so its text stays at its real size.
+  const widths = new Map<Element, number>();
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = Math.round(entry.contentRect.width);
+        const previous = widths.get(entry.target);
+        widths.set(entry.target, width);
+        if (previous === undefined || previous === width) continue;
+        const match = renderers.find(([card]) => card.figure === entry.target);
+        if (match) renderFigure(...match);
+      }
+    });
+    for (const [card] of renderers) observer.observe(card.figure);
+  }
+
+  const applyPaper = (presetId: string, adjust: () => void): void => {
+    adjust();
+    setState(structuredClone(presetById(presetId).state));
+  };
+  els.rankings.paperBtn.addEventListener("click", () =>
+    applyPaper("paper-reference", () => {
+      els.rankings.scale.value = "paper";
+    }),
+  );
+  els.traffic.paperBtn.addEventListener("click", () =>
+    applyPaper("paper-reference", () => {
+      els.traffic.metric.value = DEFAULT_NETWORK_METRIC;
+      els.traffic.preload.value = "false";
+    }),
+  );
+  els.versions.paperBtn.addEventListener("click", () =>
+    applyPaper("paper-all", () => {
+      els.versions.benchmark.value = "time_remote_file_reading";
+      els.versions.axis.value = "environment";
+    }),
+  );
+  els.extrapolation.paperBtn.addEventListener("click", () =>
+    applyPaper("paper-reference", () => {
+      els.extrapolation.preload.value = "false";
+    }),
+  );
+
+  return {
+    show(loaded, source) {
+      db = loaded;
+      const fromUrl = stateFromSearch(location.search);
+      let initial = fromUrl ?? defaultState();
+      // A bundle without the paper's machine (a custom one, or the test data) starts from everything.
+      if (!fromUrl && applyFilters(loaded, initial).runs.length === 0) initial = structuredClone(ALL_DATA);
+      const latest = latestRunDate(loaded.runs);
+      const skipped = loaded.skipped.outdated
+        ? ` ${loaded.skipped.outdated.toLocaleString("en-US")} results files in formats older than the figures read are left out.`
+        : "";
+      els.dataSummary.textContent =
+        `${loaded.runs.length.toLocaleString("en-US")} results files from ${loaded.machines.size} machines and ${loaded.environments.size} software environments` +
+        `${latest ? `, the latest from ${latest}` : ""}, ${source}.${skipped}`;
+      setState(initial);
+    },
+  };
+}
+
+export const PUBLISHED_SOURCE = `published by ${RESULTS_REPOSITORY}`;

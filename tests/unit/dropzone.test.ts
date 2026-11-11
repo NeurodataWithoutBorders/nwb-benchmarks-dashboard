@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { initDropzone } from "../../src/ui/dropzone";
+import { initDropzone, readFileBytes } from "../../src/ui/dropzone";
 import type { AppElements } from "../../src/ui/elements";
 
 // The drag styling, the input's own click, a drop without a DataTransfer and the window-level
@@ -128,5 +128,23 @@ describe("initDropzone drag & drop", () => {
     dz.dispatchEvent(dropEvent(transferOf([])));
     expect(onFile).not.toHaveBeenCalled();
     expect(reject.hidden).toBe(true);
+  });
+});
+
+describe("readFileBytes", () => {
+  it("reads a file's bytes", async () => {
+    expect(await readFileBytes(new File(["abc"], "a.txt"))).toEqual(new Uint8Array([97, 98, 99]));
+  });
+
+  it("refuses a file the browser cannot read", async () => {
+    const original = FileReader.prototype.readAsArrayBuffer;
+    FileReader.prototype.readAsArrayBuffer = function (this: FileReader) {
+      setTimeout(() => this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>), 0);
+    };
+    try {
+      await expect(readFileBytes(new File(["abc"], "a.txt"))).rejects.toThrow("The file could not be read.");
+    } finally {
+      FileReader.prototype.readAsArrayBuffer = original;
+    }
   });
 });

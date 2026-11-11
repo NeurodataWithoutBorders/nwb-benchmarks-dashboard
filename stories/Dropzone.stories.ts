@@ -10,14 +10,13 @@ function buildDropzone(state: DropzoneState): HTMLElement {
   if (state === "dragover") dz.classList.add("dragover");
   dz.innerHTML = `
     <div class="dz-inner">
-      <div class="dz-icon"><span>📄</span></div>
       <p>
-        Drop a file here, or
-        <button type="button" class="dz-browse">browse for a file</button>.
+        Or drop a copy of the results bundle (<code>bundle.json.gz</code>) here, or
+        <button type="button" class="dz-browse">browse for one</button>.
       </p>
-      <p class="dz-hint">Nothing leaves your browser: the file is read locally and never uploaded.</p>
+      <p class="dz-hint">A dropped bundle is read in your browser and never uploaded.</p>
       <p class="dz-reject" ${state === "rejected" ? "" : "hidden"}>
-        That wasn't a file.<br /><br />Drop a single file, or use the browse button instead.
+        That wasn't a file.<br /><br />Drop the results bundle (bundle.json.gz), or use the browse button instead.
       </p>
     </div>
   `;
