@@ -614,6 +614,11 @@ svg.chart {
   stroke: var(--border);
 }
 
+.chart-inset-box {
+  fill: none;
+  stroke: var(--chart-frame);
+}
+
 .chart .inset-title,
 .chart .inset-tick {
   fill: var(--muted);

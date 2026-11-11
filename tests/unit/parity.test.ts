@@ -69,7 +69,7 @@ describe("benchmark name derivation, for every name in the published results", (
 
 describe("the manuscript view", () => {
   it("selects what the Python pipeline selects for its reference environment", () => {
-    expect(MANUSCRIPT_SELECTIONS.reference).toEqual(paperState([expected.contexts["2025-09-01"].environment_id]));
+    expect(MANUSCRIPT_SELECTIONS.reference).toEqual(paperState([expected.contexts["2026-10-07"].environment_id]));
   });
 });
 

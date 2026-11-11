@@ -37,7 +37,7 @@ EXCLUDE_OLDER = "2025-11-01"
 OTHER_MACHINE_ID = "7143ac57434caee3a699fea97be5855842f2e0b7"
 
 # Which runs of the published bundle the fixture keeps, by environment: every run of the 2025-09-01
-# environment (the paper's reference), one file-open and one slicing run of the two older
+# environment, one file-open and one slicing run of the two older
 # environments (for the performance-over-versions figure), and one round of the 2026-10-07
 # environment that carries a curated exclusion and the incremental slicing benchmark.
 FIXTURE_RESULT_TIMESTAMPS = {

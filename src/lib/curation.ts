@@ -26,7 +26,7 @@ export const ENVIRONMENT_TIMEPOINTS: Record<string, string> = {
 };
 
 /** The environment the paper's single-environment figures (Figures 3 and 5) use. */
-export const PAPER_REFERENCE_TIMEPOINT = "2025-09-01";
+export const PAPER_REFERENCE_TIMEPOINT = "2026-10-07";
 
 /** Environment ID to its timepoint date. */
 export const TIMEPOINT_BY_ENVIRONMENT: Record<string, string> = Object.fromEntries(

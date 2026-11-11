@@ -16,7 +16,13 @@ import {
   renderIncremental,
 } from "../../src/ui/figures/incremental";
 import { RANKINGS_COLUMNS, heatFill, heatMax, rankingsRows, renderRankings } from "../../src/ui/figures/rankings";
-import { TRAFFIC_COLUMNS, renderTraffic, trafficLegend, trafficRows } from "../../src/ui/figures/traffic";
+import {
+  TRAFFIC_COLUMNS,
+  renderTraffic,
+  trafficLegend,
+  trafficRows,
+  zeroTrafficInsetLayout,
+} from "../../src/ui/figures/traffic";
 import { VERSIONS_COLUMNS, renderVersions, versionsLegend, versionsRows } from "../../src/ui/figures/versions";
 
 const dataset = applyFilters(readDatabase(synthesizeMockBundle()), ALL_DATA);
@@ -82,6 +88,26 @@ describe("traffic", () => {
     const rows = trafficRows(fileOpen, slicing);
     expect(rows.length).toBeGreaterThan(100);
     expect(TRAFFIC_COLUMNS.map((column) => column.value(rows[rows.length - 1]))[0]).toBe("Remote slicing - preloaded");
+  });
+
+  // A phone-width panel, a desktop one and the tallest one panelHeight allows.
+  it.each([
+    [{ left: 58, top: 40, right: 327, bottom: 256 }],
+    [{ left: 58, top: 40, right: 498, bottom: 356 }],
+    [{ left: 58, top: 40, right: 700, bottom: 396 }],
+  ])("keeps the zero-traffic inset and its labels inside the plot area of %o", (inner) => {
+    const labelChars = 7;
+    const { frame, box } = zeroTrafficInsetLayout(inner, labelChars);
+    expect(frame.left).toBeGreaterThanOrEqual(inner.left);
+    expect(frame.right).toBeLessThan(inner.right);
+    expect(frame.top).toBeGreaterThanOrEqual(inner.top);
+    expect(frame.bottom).toBeLessThan(inner.bottom);
+    expect(box.left - frame.left).toBeGreaterThan(labelChars * 5);
+    expect(frame.bottom - box.bottom).toBeGreaterThan(12);
+    expect(box.top - frame.top).toBeGreaterThan(12);
+    expect(box.right - box.left).toBeLessThanOrEqual((inner.right - inner.left) * 0.4 + 1e-9);
+    expect(box.bottom - box.top).toBeLessThanOrEqual((inner.bottom - inner.top) * 0.34 + 1e-9);
+    expect(box.right - box.left).toBeGreaterThan(50);
   });
 
   it("marks panels without data, and a metric that is not bytes draws no throughput lines", () => {

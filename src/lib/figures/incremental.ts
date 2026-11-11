@@ -1,6 +1,6 @@
-// The incremental slicing figure (`plot_incremental_slicing_benchmarks`), which replaces the
-// paper's extrapolated Figure 4a: the measured cumulative time to open a file and read it slice by
-// slice along its whole time axis, streaming against downloading it first.
+// The incremental slicing figure (`plot_incremental_slicing_benchmarks`): the measured cumulative
+// time to open a file and read it slice by slice along its whole time axis, streaming against
+// downloading it first.
 
 import { MODALITY_ORDER, type Modality } from "../benchmarkNames";
 import type { Dataset } from "../filters";

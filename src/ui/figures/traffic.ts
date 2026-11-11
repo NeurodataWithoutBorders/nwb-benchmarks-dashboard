@@ -77,8 +77,18 @@ function drawFileOpen(slot: HTMLElement, figure: FileOpenTraffic, letter: string
     width,
     height: panelHeight(width),
     title: figure.title,
-    x: { log: true, domain: xDomain, label: metricLabel(figure.metric), format: formatCompact },
-    y: { log: true, domain: yDomain, label: "Runtime (s)", format: formatCompact },
+    x: {
+      log: true,
+      domain: xDomain,
+      label: metricLabel(figure.metric),
+      format: formatCompact,
+    },
+    y: {
+      log: true,
+      domain: yDomain,
+      label: "Runtime (s)",
+      format: formatCompact,
+    },
     description: `${figure.title}: ${metricLabel(figure.metric)} against runtime, per method and modality`,
   });
   addLetter(panel, letter);
@@ -108,47 +118,109 @@ function drawFileOpen(slot: HTMLElement, figure: FileOpenTraffic, letter: string
   slot.replaceChildren(panel.svg);
 }
 
+// The inset's 9px type, by a generous average glyph width, so labels are measured without a layout pass.
+const INSET_CHAR_WIDTH = 5.5;
+const INSET_PAD = 4;
+const INSET_TITLE_HEIGHT = 13;
+const INSET_X_AXIS_HEIGHT = 13;
+
+interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export interface InsetLayout {
+  /** The backdrop, holding the title and tick labels as well as the plot box. */
+  frame: Box;
+  /** Where the inset's points go. */
+  box: Box;
+}
+
+/** `ax.inset_axes([0.58, 0.095, 0.40, 0.34])` in `_plot_slicing_network_runtime_trajectories`: a plot box
+ * 40% by 34% of the panel's plot area at its lower right, shrunk where needed so that its frame, tick
+ * labels included, stays inside the plot area rather than over the axes. */
+export function zeroTrafficInsetLayout(inner: Box, yLabelChars: number): InsetLayout {
+  const gutter = INSET_PAD + yLabelChars * INSET_CHAR_WIDTH + 3;
+  const right = inner.right - 3 * INSET_PAD;
+  const bottom = inner.bottom - INSET_PAD - INSET_X_AXIS_HEIGHT - INSET_PAD;
+  const width = Math.min((inner.right - inner.left) * 0.4, right - inner.left - INSET_PAD - gutter);
+  const height = Math.min((inner.bottom - inner.top) * 0.34, bottom - inner.top - 2 * INSET_PAD - INSET_TITLE_HEIGHT);
+  const box = { left: right - width, top: bottom - height, right, bottom };
+  return {
+    box,
+    frame: {
+      left: box.left - gutter,
+      top: box.top - INSET_TITLE_HEIGHT - INSET_PAD,
+      right: inner.right - INSET_PAD,
+      bottom: inner.bottom - INSET_PAD,
+    },
+  };
+}
+
 function drawZeroTrafficInset(panel: Panel, points: TrafficPoint[]): void {
-  const { inner } = panel;
-  const width = (inner.right - inner.left) * 0.42;
-  const height = (inner.bottom - inner.top) * 0.36;
-  const left = inner.right - width - 6;
-  const top = inner.bottom - height - 6;
-  const group = svgEl("g", { class: "chart-inset" });
-  group.append(
-    svgEl("rect", {
-      class: "chart-inset-frame",
-      x: left - 30,
-      y: top - 16,
-      width: width + 34,
-      height: height + 34,
-      rx: 4,
-    }),
-  );
-  group.append(
-    svgText("inset-title", { x: left + width / 2 - 13, y: top - 5, "text-anchor": "middle" }, "no traffic measured"),
-  );
   const slices = points.map((point) => point.sliceNumber ?? 0);
   const runtimes = points.map((point) => point.runtime.mean);
   const [minSlice, maxSlice] = [Math.min(...slices), Math.max(...slices)];
   const [minRuntime, maxRuntime] = [Math.min(...runtimes), Math.max(...runtimes)];
+  const yLabels = [formatG(maxRuntime, 2), formatG(minRuntime, 2)];
+  const { frame, box } = zeroTrafficInsetLayout(panel.inner, Math.max(...yLabels.map((label) => label.length)));
+  // Markers keep clear of the box's edges and the labels beside them.
+  const plot = {
+    left: box.left + INSET_PAD,
+    top: box.top + INSET_PAD,
+    right: box.right - INSET_PAD,
+    bottom: box.bottom - INSET_PAD,
+  };
+  const group = svgEl("g", { class: "chart-inset" });
+  group.append(
+    svgEl("rect", {
+      class: "chart-inset-frame",
+      x: frame.left,
+      y: frame.top,
+      width: frame.right - frame.left,
+      height: frame.bottom - frame.top,
+      rx: 4,
+    }),
+    svgEl("rect", {
+      class: "chart-inset-box",
+      x: box.left,
+      y: box.top,
+      width: box.right - box.left,
+      height: box.bottom - box.top,
+    }),
+    svgText(
+      "inset-title",
+      {
+        x: (frame.left + frame.right) / 2,
+        y: frame.top + INSET_PAD + 8,
+        "text-anchor": "middle",
+      },
+      "no traffic measured",
+    ),
+    svgText("inset-tick", { x: box.left - 3, y: plot.top + 3, "text-anchor": "end" }, yLabels[0]),
+    svgText("inset-tick", { x: box.left - 3, y: plot.bottom + 3, "text-anchor": "end" }, yLabels[1]),
+    svgText("inset-tick", { x: plot.left, y: box.bottom + 11, "text-anchor": "middle" }, String(minSlice)),
+    svgText(
+      "inset-tick",
+      {
+        x: (box.left + box.right) / 2,
+        y: box.bottom + 11,
+        "text-anchor": "middle",
+      },
+      "slice",
+    ),
+    svgText("inset-tick", { x: plot.right, y: box.bottom + 11, "text-anchor": "middle" }, String(maxSlice)),
+  );
   const logY = minRuntime > 0 && maxRuntime / minRuntime > 20;
-  const x = (slice: number): number => left + ((slice - minSlice) / (maxSlice - minSlice || 1)) * width;
-  const y: (runtime: number) => number = logY
-    ? (runtime) =>
-        top +
-        height -
-        ((Math.log10(runtime) - Math.log10(minRuntime)) / (Math.log10(maxRuntime) - Math.log10(minRuntime) || 1)) *
-          height
-    : (runtime) => top + height - ((runtime - minRuntime) / (maxRuntime - minRuntime || 1)) * height;
-  group.append(svgText("inset-tick", { x: left - 3, y: top + 4, "text-anchor": "end" }, formatG(maxRuntime, 2)));
-  group.append(
-    svgText("inset-tick", { x: left - 3, y: top + height + 2, "text-anchor": "end" }, formatG(minRuntime, 2)),
-  );
-  group.append(svgText("inset-tick", { x: left, y: top + height + 12, "text-anchor": "middle" }, String(minSlice)));
-  group.append(
-    svgText("inset-tick", { x: left + width, y: top + height + 12, "text-anchor": "middle" }, String(maxSlice)),
-  );
+  const x = (slice: number): number =>
+    plot.left + ((slice - minSlice) / (maxSlice - minSlice || 1)) * (plot.right - plot.left);
+  const yFraction = logY
+    ? (runtime: number) =>
+        (Math.log10(runtime) - Math.log10(minRuntime)) / (Math.log10(maxRuntime) - Math.log10(minRuntime) || 1)
+    : (runtime: number) => (runtime - minRuntime) / (maxRuntime - minRuntime || 1);
+  const y = (runtime: number): number => plot.bottom - yFraction(runtime) * (plot.bottom - plot.top);
   for (const method of new Set(points.map((point) => point.method))) {
     const ofMethod = points.filter((point) => point.method === method);
     const color = methodColor(method);
@@ -184,8 +256,18 @@ function drawTrajectories(
     width,
     height: panelHeight(width),
     title: data.modality,
-    x: { log: true, domain: xDomain, label: metricLabel(figure.metric), format: formatCompact },
-    y: { log: true, domain: yDomain, label: "Runtime (s)", format: formatCompact },
+    x: {
+      log: true,
+      domain: xDomain,
+      label: metricLabel(figure.metric),
+      format: formatCompact,
+    },
+    y: {
+      log: true,
+      domain: yDomain,
+      label: "Runtime (s)",
+      format: formatCompact,
+    },
     description: `${data.modality} slicing: ${metricLabel(figure.metric)} against runtime with increasing slice size`,
   });
   addLetter(panel, letter);
@@ -260,10 +342,18 @@ export function trafficRows(fileOpen: FileOpenTraffic[], slicing: SlicingTraffic
   const slicingTitle = `Remote slicing - ${slicing.preloaded ? "preloaded" : "not preloaded"}`;
   return [
     ...fileOpen.flatMap((figure) =>
-      figure.points.map((point) => ({ panel: figure.title, point, metric: figure.metric })),
+      figure.points.map((point) => ({
+        panel: figure.title,
+        point,
+        metric: figure.metric,
+      })),
     ),
     ...slicing.panels.flatMap((panel) =>
-      [...panel.points, ...panel.zeroTraffic].map((point) => ({ panel: slicingTitle, point, metric: slicing.metric })),
+      [...panel.points, ...panel.zeroTraffic].map((point) => ({
+        panel: slicingTitle,
+        point,
+        metric: slicing.metric,
+      })),
     ),
   ];
 }

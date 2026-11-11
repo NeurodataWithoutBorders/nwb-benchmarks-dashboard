@@ -95,7 +95,7 @@ describe("main.ts boot", () => {
     exclusions.checked = false;
     exclusions.dispatchEvent(new Event("change"));
     expect(window.location.search).not.toContain("manuscript");
-    expect(window.location.search).toContain(`environment=${ENVIRONMENT_TIMEPOINTS["2025-09-01"]}`);
+    expect(window.location.search).toContain(`environment=${ENVIRONMENT_TIMEPOINTS["2026-10-07"]}`);
     expect(el("versions-note").hidden).toBe(false);
   });
 

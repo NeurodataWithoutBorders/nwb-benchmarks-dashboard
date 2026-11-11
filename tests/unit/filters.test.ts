@@ -39,7 +39,7 @@ describe("the starting selection and the manuscript's", () => {
       from: "2025-11-01",
       to: null,
       applyExclusions: true,
-      selected: { machine: LBL_MAC_MACHINE_IDS, environment: [ENVIRONMENT_TIMEPOINTS["2025-09-01"]] },
+      selected: { machine: LBL_MAC_MACHINE_IDS, environment: [ENVIRONMENT_TIMEPOINTS["2026-10-07"]] },
     });
     expect(MANUSCRIPT_SELECTIONS.timepoints.selected.environment).toEqual(Object.values(ENVIRONMENT_TIMEPOINTS));
     expect(MANUSCRIPT_FIGURE_SELECTIONS).toEqual({
@@ -48,7 +48,7 @@ describe("the starting selection and the manuscript's", () => {
       versions: "timepoints",
       incremental: "timepoints",
     });
-    expect(MANUSCRIPT_DESCRIPTION).toContain("the 2025-09-01 environment for Figures 3 and 5");
+    expect(MANUSCRIPT_DESCRIPTION).toContain("the 2026-10-07 environment for Figures 3 and 5");
   });
 
   it("compares states regardless of order", () => {
