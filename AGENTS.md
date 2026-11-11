@@ -9,6 +9,9 @@ Every BBQS companion app is the same shell around a different job.
 The shell is what this template provides: the page frame in `index.html` (header with the logo and the light/dark toggle, the BBQS and CON marks, the footer with the version stamp, the bug and feature links and the "What's New" modal), the shared stylesheet `src/style.css` imports from `@brain-bbqs/ui` (theme tokens, page defaults, header, footer and controls), the tooling under `configs/` (thin calls into `@brain-bbqs/config`), the workflows under `.github/`, and the conventions in this file.
 An app adds what it does: pure logic under `src/lib/` (one concern per module, each with a unit test), DOM work under `src/ui/`, the wiring in `src/main.ts`, the markup for it in `index.html` (every id it touches registered in `src/ui/elements.ts`), and its own rules in `src/style.css` below the imports.
 
+This app departs from that shell on purpose: it carries no BBQS mark or link, and its footer holds only the version stamp and the CON mark, with no What's New modal or bug and feature links.
+Keep them out when syncing from the template.
+
 Keep the shell recognizably the same as its siblings, [clip-extractor](https://github.com/brain-bbqs/clip-extractor), [encoding-helper](https://github.com/brain-bbqs/encoding-helper) and [bbqs-uploader](https://github.com/brain-bbqs/bbqs-uploader), which this template was abstracted from.
 When in doubt about how something should look or behave, look there first: a control one of them already has is the one to copy, not to redesign.
 

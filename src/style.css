@@ -1,6 +1,6 @@
 /* The shell every BBQS companion app shares comes from @brain-bbqs/ui: the theme tokens (light,
-   dark via the OS preference or the header toggle), the page defaults, the header, watermark and
-   footer bar, the shared controls, and the "What's New" modal. Set a token or knob (see that
+   dark via the OS preference or the header toggle), the page defaults, the header and footer bar,
+   and the shared controls. Set a token or knob (see that
    package's README) on :root below to change it. The app draws its own dropzone, so it skips the
    package's dropzone.css.
    CSS allows @import only at the top, so every rule below follows the shared ones. */
@@ -10,7 +10,6 @@
 @import "@brain-bbqs/ui/styles/controls.css";
 @import "@brain-bbqs/ui/styles/dataset-picker.css";
 @import "@brain-bbqs/ui/styles/human-subjects.css";
-@import "@brain-bbqs/ui/styles/whats-new.css";
 
 /* ------------------------------------------------------------------------------------------ */
 /* Tokens: the figures' palette. Light here; the two dark blocks below must stay identical.     */

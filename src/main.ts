@@ -1,6 +1,5 @@
 import "./style.css";
-import { initThemeToggle, initWhatsNew, renderVersion } from "@brain-bbqs/ui";
-import changelog from "../CHANGELOG.md?raw";
+import { initThemeToggle, renderVersion } from "@brain-bbqs/ui";
 import { BundleError, RESULTS_BUNDLE_URL, decodeBundle, fetchBundleBytes } from "./lib/bundle";
 import { readDatabase, type Bundle } from "./lib/database";
 import { synthesizeMockBundle } from "./lib/mockBundle";
@@ -15,13 +14,11 @@ const shell = getShell();
 const els = getElements();
 
 // ---------------------------------------------------------------------------------------------
-// The shared shell: the footer version stamp, the "What's New" modal and the light/dark toggle.
-// Every BBQS companion app carries these three, wired the same way; what follows them is the app.
+// The shared shell: the footer version stamp and the light/dark toggle. Unlike the BBQS companion
+// apps, this one carries no What's New modal, bug or feature links, or BBQS mark.
 // ---------------------------------------------------------------------------------------------
 
 renderVersion(shell.versionIndicator, __APP_VERSION__);
-
-initWhatsNew(els.whatsNew, { changelog });
 
 // The inline script in index.html already applied any stored theme override before first paint,
 // so the toggle only has to flip and persist it, under the key that script reads.

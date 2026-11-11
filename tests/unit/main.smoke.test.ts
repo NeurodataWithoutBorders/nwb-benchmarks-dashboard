@@ -3,16 +3,12 @@
 // published bundle, and drives the dashboard and the shell end to end. Besides covering main.ts's
 // wiring, this guards the index.html/elements.ts id contract: getShell() and getElements() throw
 // on import if any registered id is missing from the page.
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { installObserverStub, throwingStorage } from "@brain-bbqs/test-utils/vitest";
-import { countChangelogVersions } from "@brain-bbqs/ui";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ENVIRONMENT_TIMEPOINTS, LBL_MAC_MACHINE_IDS } from "../../src/lib/curation";
 import { THEME_KEY } from "../../src/lib/settings";
 import { bootMain, dashboardShown, el, publishedBundleFetch } from "./helpers/mainHarness";
 
-const WHATS_NEW_RECENT_VERSIONS = 3;
 let resizeObservers: ReturnType<typeof installObserverStub>;
 
 beforeAll(async () => {
@@ -213,16 +209,13 @@ describe("main.ts boot", () => {
     }
   });
 
-  it("renders the changelog into the What's New modal and opens it from the footer", async () => {
-    const changelog = readFileSync(resolve(process.cwd(), "CHANGELOG.md"), "utf-8");
-    expect(el("whats-new-content").querySelectorAll(".changelog-version").length).toBe(
-      Math.min(countChangelogVersions(changelog), WHATS_NEW_RECENT_VERSIONS),
-    );
-    const modal = el<HTMLDialogElement>("whats-new-modal");
-    el("whats-new-button").click();
-    expect(modal.open).toBe(true);
-    expect(window.location.hash).toBe("#changelog");
-    el("whats-new-close").click();
-    await vi.waitFor(() => expect(window.location.hash).toBe(""));
+  it("carries only the version stamp and the CON mark in its footer, and no BBQS mark", () => {
+    const footer = document.querySelector(".page-footer-bar") as HTMLElement;
+    expect([...footer.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toEqual([
+      "https://github.com/brain-bbqs/nwb-benchmarks-dashboard",
+      "https://centerforopenneuroscience.org",
+    ]);
+    expect(document.querySelector('a[href*="brain-bbqs.org"]')).toBeNull();
+    expect(document.querySelector("dialog")).toBeNull();
   });
 });
