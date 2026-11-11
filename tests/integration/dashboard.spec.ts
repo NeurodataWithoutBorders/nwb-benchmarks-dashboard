@@ -12,7 +12,6 @@ test.describe("the dashboard", () => {
     await expect(page.locator("#rankings-figure svg.chart")).toHaveCount(4);
     await expect(page.locator("#traffic-figure svg.chart")).toHaveCount(5);
     await expect(page.locator("#versions-figure svg.chart")).toHaveCount(3);
-    await expect(page.locator("#extrapolation-figure svg.chart")).toHaveCount(3);
     await expect(page.locator("#incremental-figure svg.chart")).toHaveCount(3);
   });
 

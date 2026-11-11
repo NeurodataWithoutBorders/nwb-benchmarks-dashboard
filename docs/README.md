@@ -22,7 +22,7 @@ Add a row here for every injection the app grows, and read the `visual-snapshots
 ## The manuscript view
 
 `?manuscript` is not a test injection but a view for people: it draws each figure from the selection nwb-benchmarks' `generate_figures` draws the manuscript's version from (`MANUSCRIPT_SELECTIONS` and `MANUSCRIPT_FIGURE_SELECTIONS` in `src/lib/filters.ts`).
-Figures 3, 4a and 5 take the LBNL Mac's results since 2025-11-01 in the 2025-09-01 environment, and Figure 4b and the incremental slicing figure take the same machine's results in all the dated environments.
+Figures 3 and 5 take the LBNL Mac's results since 2025-11-01 in the 2025-09-01 environment, and Figure 4b and the incremental slicing figure take the same machine's results in all the dated environments.
 Changing any filter leaves the view, starting from the reference selection.
 
 ## Parity with the Python figures

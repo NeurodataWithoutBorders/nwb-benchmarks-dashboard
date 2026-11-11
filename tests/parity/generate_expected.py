@@ -239,34 +239,7 @@ def main() -> None:
         )
         base_db.create_database()
 
-        extrapolations = []
-        original_extrapolation = visualization.BenchmarkVisualizer.plot_linear_extrapolation_with_intersection
-
-        def recording_extrapolation(self, remote_group, local_group, benchmark_name, ax, color, title=""):
-            import numpy
-
-            result = original_extrapolation(self, remote_group, local_group, benchmark_name, ax, color, title)
-            if len(remote_group["slice_number"].unique()) > 1 and len(local_group["slice_number"].unique()) > 1:
-                m1, b1 = numpy.polyfit(remote_group["slice_number"], remote_group["total_time"], 1)
-                m2, b2 = numpy.polyfit(local_group["slice_number"], local_group["total_time"], 1)
-                extrapolations.append(
-                    {
-                        "modality": remote_group["modality"][0],
-                        "method": benchmark_name,
-                        "is_preloaded": bool(remote_group["is_preloaded"][0]),
-                        "stream_slope": float(m1),
-                        "stream_intercept": float(b1),
-                        "download_slope": float(m2),
-                        "download_intercept": float(b2),
-                        "plotted": result is not None,
-                    }
-                )
-            return result
-
-        visualization.BenchmarkVisualizer.plot_linear_extrapolation_with_intersection = recording_extrapolation
-
         for label, environment_id in CONTEXTS.items():
-            extrapolations.clear()
             summary_directory = scratch / "summaries" / label
             visualizer = visualization.BenchmarkVisualizer(
                 output_directory=scratch / "figures", summary_tables_directory=summary_directory.parent
@@ -305,9 +278,6 @@ def main() -> None:
                         f"slicing_total_transfer_in_bytes_runtime_trajectory_preloaded_{label}_summary.csv"
                     ),
                 },
-                "extrapolations": sorted(
-                    extrapolations, key=lambda row: (row["modality"], row["is_preloaded"], row["method"])
-                ),
                 "incremental_overview": table(f"incremental_slicing_overview_{label}.csv"),
                 "incremental_curves": {
                     modality: table(f"incremental_slicing_cumulative_time_{modality.lower()}_{label}.csv")

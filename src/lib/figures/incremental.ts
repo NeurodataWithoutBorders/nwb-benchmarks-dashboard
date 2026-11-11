@@ -1,6 +1,6 @@
-// The incremental slicing figure (`plot_incremental_slicing_benchmarks`), which the paper's
-// issue #16 proposes in place of Figure 4a: the measured cumulative time to open a file and read
-// it slice by slice along its whole time axis, streaming against downloading it first.
+// The incremental slicing figure (`plot_incremental_slicing_benchmarks`), which replaces the
+// paper's extrapolated Figure 4a: the measured cumulative time to open a file and read it slice by
+// slice along its whole time axis, streaming against downloading it first.
 
 import { MODALITY_ORDER, type Modality } from "../benchmarkNames";
 import type { Dataset } from "../filters";
@@ -13,8 +13,7 @@ import {
   orderMethods,
   type LineStyle,
 } from "../methods";
-import { groupBy, median, std } from "../stats";
-import { downloadTimes } from "./extrapolation";
+import { groupBy, mean, median, std } from "../stats";
 
 export interface IncrementalPoint {
   sliceIndex: number;
@@ -45,6 +44,23 @@ export interface IncrementalPanel {
   modality: Modality;
   /** Download + local curves first, then streaming methods in the figures' order. */
   curves: IncrementalCurve[];
+}
+
+/** `download_match_name`: download benchmarks are named "<format> dandi api". */
+function downloadMatch(method: string): string {
+  return method.replace("dandi api", "pynwb");
+}
+
+/** Mean full-file download time by modality and the method it downloads for. */
+export function downloadTimes(dataset: Dataset): Map<string, number> {
+  const times = new Map<string, number>();
+  for (const group of groupBy(
+    dataset.rows("time_download"),
+    (row) => [row.modality, downloadMatch(row.clean)] as const,
+  ).values()) {
+    times.set(JSON.stringify(group.key), mean(group.items.map((row) => row.value)));
+  }
+  return times;
 }
 
 /** `_first_crossover_index`. */

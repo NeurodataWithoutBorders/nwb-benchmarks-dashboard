@@ -5,7 +5,6 @@ import { h } from "@brain-bbqs/ui";
 import { RESULTS_REPOSITORY } from "../lib/bundle";
 import type { Column } from "../lib/csv";
 import { latestRunDate, type Database } from "../lib/database";
-import { extrapolations } from "../lib/figures/extrapolation";
 import { incrementalSlicing } from "../lib/figures/incremental";
 import { methodRankings } from "../lib/figures/rankings";
 import { DEFAULT_NETWORK_METRIC, fileOpenTraffic, slicingTraffic } from "../lib/figures/traffic";
@@ -30,7 +29,6 @@ import { createTooltip, renderLegend, setNote, type LegendEntry, type Tooltip } 
 import type { AppElements, FigureCardElements } from "./elements";
 import { figureSvg } from "./export";
 import { initFilters } from "./filters";
-import { EXTRAPOLATION_COLUMNS, extrapolationLegend, renderExtrapolation, uncrossed } from "./figures/extrapolation";
 import {
   INCREMENTAL_COLUMNS,
   incrementalLegend,
@@ -125,7 +123,6 @@ export function createDashboard(
     VERSION_AXES.map((axis) => [axis.id, axis.label]),
     "environment",
   );
-  fillSelect(els.extrapolation.preload, PRELOAD_OPTIONS, "false");
   fillSelect(
     els.incremental.scale,
     [
@@ -191,32 +188,6 @@ export function createDashboard(
     );
   }
 
-  function renderExtrapolationCard(data: Dataset): void {
-    const card = els.extrapolation;
-    const preloaded = card.preload.value === "true";
-    const fits = extrapolations(data);
-    const missing = uncrossed(fits, preloaded);
-    let note: string | null = null;
-    if (fits.length === 0)
-      note =
-        "Comparing needs remote and local slicing, local file opening and download results; the filters leave none.";
-    else if (missing.length) {
-      const list = missing.join(", ");
-      note = `No crossover in the positive quadrant, so not drawn: ${list}${list.endsWith(".") ? "" : "."}`;
-    }
-    setNote(card.note, note);
-    if (fits.length) renderExtrapolation(card.figure, fits, preloaded, tooltip);
-    else card.figure.replaceChildren();
-    finish(
-      card,
-      "download-vs-streaming-extrapolation",
-      "When is downloading first faster than streaming?",
-      extrapolationLegend(fits, preloaded),
-      EXTRAPOLATION_COLUMNS,
-      fits.filter((fit) => fit.isPreloaded === preloaded),
-    );
-  }
-
   function renderIncrementalCard(data: Dataset): void {
     const card = els.incremental;
     const panels = incrementalSlicing(data);
@@ -243,7 +214,6 @@ export function createDashboard(
     [els.rankings, renderRankingsCard, "rankings"],
     [els.traffic, renderTrafficCard, "traffic"],
     [els.versions, renderVersionsCard, "versions"],
-    [els.extrapolation, renderExtrapolationCard, "extrapolation"],
     [els.incremental, renderIncrementalCard, "incremental"],
   ];
 
@@ -298,7 +268,6 @@ export function createDashboard(
     els.traffic.preload.value = "false";
     els.versions.benchmark.value = "time_remote_file_reading";
     els.versions.axis.value = "environment";
-    els.extrapolation.preload.value = "false";
     els.incremental.scale.value = "linear";
     navigate(manuscriptSearch(location.search));
   }

@@ -25,9 +25,9 @@ describe("main.ts boot with ?test&mock_data", () => {
   });
 
   it("fills every figure", () => {
-    for (const id of ["rankings", "traffic", "versions", "extrapolation", "incremental"]) {
+    for (const id of ["rankings", "traffic", "versions", "incremental"]) {
       expect(el(`${id}-figure`).querySelectorAll("svg.chart").length).toBeGreaterThan(0);
-      expect(el(`${id}-note`).hidden || id === "extrapolation").toBe(true);
+      expect(el(`${id}-note`).hidden).toBe(true);
     }
   });
 });

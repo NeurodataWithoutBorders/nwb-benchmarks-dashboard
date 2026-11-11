@@ -133,7 +133,7 @@ export const MANUSCRIPT_SELECTIONS: Record<ManuscriptSelection, FilterState> = {
   timepoints: paperSelection(Object.values(ENVIRONMENT_TIMEPOINTS)),
 };
 
-export type FigureId = "rankings" | "traffic" | "versions" | "extrapolation" | "incremental";
+export type FigureId = "rankings" | "traffic" | "versions" | "incremental";
 
 /** Which selection each figure takes in the manuscript view, as the Python pipeline draws them: the
  * single-environment figures for the reference environment, the comparison across environments (and the
@@ -141,14 +141,13 @@ export type FigureId = "rankings" | "traffic" | "versions" | "extrapolation" | "
 export const MANUSCRIPT_FIGURE_SELECTIONS: Record<FigureId, ManuscriptSelection> = {
   rankings: "reference",
   traffic: "reference",
-  extrapolation: "reference",
   versions: "timepoints",
   incremental: "timepoints",
 };
 
 export const MANUSCRIPT_DESCRIPTION =
   `The manuscript's selections: the LBNL Mac, results since ${PAPER_EXCLUDE_OLDER}, ` +
-  `the ${PAPER_REFERENCE_TIMEPOINT} environment for Figures 3, 4a and 5, ` +
+  `the ${PAPER_REFERENCE_TIMEPOINT} environment for Figures 3 and 5, ` +
   `and the ${Object.keys(ENVIRONMENT_TIMEPOINTS).length} dated environments for Figure 4b and incremental slicing.`;
 
 export function cloneState(state: FilterState): FilterState {

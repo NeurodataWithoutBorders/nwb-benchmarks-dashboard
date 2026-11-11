@@ -64,10 +64,6 @@ export function getElements() {
       benchmark: required<HTMLSelectElement>("versions-benchmark"),
       axis: required<HTMLSelectElement>("versions-axis"),
     },
-    extrapolation: {
-      ...figureCard("extrapolation"),
-      preload: required<HTMLSelectElement>("extrapolation-preload"),
-    },
     incremental: {
       ...figureCard("incremental"),
       scale: required<HTMLSelectElement>("incremental-scale"),

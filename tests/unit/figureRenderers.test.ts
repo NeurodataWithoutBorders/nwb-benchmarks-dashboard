@@ -3,20 +3,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { readDatabase } from "../../src/lib/database";
 import { ALL_DATA, applyFilters } from "../../src/lib/filters";
-import { extrapolations, type Extrapolation } from "../../src/lib/figures/extrapolation";
 import { incrementalSlicing } from "../../src/lib/figures/incremental";
 import { methodRankings } from "../../src/lib/figures/rankings";
 import { fileOpenTraffic, slicingTraffic } from "../../src/lib/figures/traffic";
 import { performanceAcrossVersions } from "../../src/lib/figures/versions";
 import { synthesizeMockBundle } from "../../src/lib/mockBundle";
 import { createTooltip } from "../../src/ui/charts/chrome";
-import {
-  drawnRange,
-  extrapolationLegend,
-  renderExtrapolation,
-  uncrossed,
-  EXTRAPOLATION_COLUMNS,
-} from "../../src/ui/figures/extrapolation";
 import {
   INCREMENTAL_COLUMNS,
   incrementalLegend,
@@ -154,29 +146,6 @@ describe("versions", () => {
     const blank = { ...figure, panels: [{ ...figure.panels[0], series: [] }] };
     renderVersions(target, blank, "x", tooltip);
     expect(target.querySelector(".chart-empty")).not.toBeNull();
-  });
-});
-
-describe("extrapolation", () => {
-  const fits = extrapolations(dataset);
-
-  it("draws a panel per modality with a cross at each crossover", () => {
-    renderExtrapolation(target, fits, false, tooltip);
-    const crossed = fits.filter((fit) => !fit.isPreloaded && fit.crossover);
-    expect(target.querySelectorAll(".chart-cross")).toHaveLength(crossed.length);
-    hover(target.querySelector(".chart-hit") as Element);
-    expect(extrapolationLegend(fits, false).some((entry) => entry.label === "HDF5 download + local")).toBe(true);
-    expect(EXTRAPOLATION_COLUMNS.map((column) => column.value(fits[0]))[0]).toBe(fits[0].modality);
-  });
-
-  it("lists methods without a crossover and marks panels with none", () => {
-    const noCross: Extrapolation[] = fits.map((fit) => ({ ...fit, crossover: null }));
-    expect(uncrossed(noCross, false).length).toBeGreaterThan(0);
-    renderExtrapolation(target, noCross, false, tooltip);
-    expect(target.textContent).toContain("No crossover in the positive quadrant");
-    expect(EXTRAPOLATION_COLUMNS.at(-1)?.value(noCross[0])).toBe(null);
-    expect(drawnRange(noCross[0])).toBe(2);
-    expect(drawnRange({ ...fits[0], crossover: { x: 100, y: 1 } })).toBe(120);
   });
 });
 

@@ -5,7 +5,6 @@ import { benchmarkNameParts, modalityOf, scalingValueOf } from "../../src/lib/be
 import { LBL_MAC_MACHINE_IDS, PAPER_EXCLUDE_OLDER } from "../../src/lib/curation";
 import { readDatabase } from "../../src/lib/database";
 import { MANUSCRIPT_SELECTIONS, applyFilters, type FilterState } from "../../src/lib/filters";
-import { extrapolations } from "../../src/lib/figures/extrapolation";
 import { incrementalOverview, incrementalSlicing } from "../../src/lib/figures/incremental";
 import { methodRankings } from "../../src/lib/figures/rankings";
 import { fileOpenTraffic, slicingTraffic, type TrafficPoint } from "../../src/lib/figures/traffic";
@@ -121,26 +120,6 @@ describe.each(Object.entries(expected.contexts))("the %s environment", (_label, 
     const traffic = slicingTraffic(dataset, preloaded);
     const points = traffic.panels.flatMap((panel) => [...panel.points, ...panel.zeroTraffic]);
     expectTraffic(points, context.slicing_network[key]);
-  });
-
-  it("matches Figure 4a's fitted lines and crossovers", () => {
-    const fits = extrapolations(dataset);
-    expect(fits.length).toBe(context.extrapolations.length);
-    for (const row of context.extrapolations) {
-      const fit = fits.find(
-        (candidate) =>
-          candidate.modality === row.modality &&
-          candidate.method === row.method &&
-          candidate.isPreloaded === row.is_preloaded,
-      );
-      expect(fit, JSON.stringify(row)).toBeDefined();
-      if (!fit) continue;
-      expect(close(fit.stream.slope, row.stream_slope, 1e-7)).toBe(true);
-      expect(close(fit.stream.intercept, row.stream_intercept, 1e-7)).toBe(true);
-      expect(close(fit.download.slope, row.download_slope, 1e-7)).toBe(true);
-      expect(close(fit.download.intercept, row.download_intercept, 1e-7)).toBe(true);
-      expect(fit.crossover !== null).toBe(row.plotted);
-    }
   });
 
   it("matches the incremental slicing curves and overview", () => {

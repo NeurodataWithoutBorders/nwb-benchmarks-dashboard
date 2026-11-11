@@ -216,42 +216,20 @@ export function synthesizeMockBundle(): Bundle {
       addRun(environmentIndex, slicingNetwork);
     }
 
-    const local: Record<string, Record<string, unknown>> = {};
-    const localSlicing: Record<string, Record<string, unknown>> = {};
     const downloads: Record<string, Record<string, unknown>> = {};
-    for (const [format, readClass, sliceClass, download] of [
-      ["hdf5", "HDF5FileReadBenchmark", "HDF5PyNWBLocal", 9000],
-      ["zarr", "ZarrFileReadBenchmark", "ZarrPyNWBLocal", 6000],
+    for (const [format, download] of [
+      ["hdf5", 9000],
+      ["zarr", 6000],
     ] as const) {
-      local[`time_local_file_reading.${readClass}.time_read_local_pynwb`] = {};
-      downloads[
-        `time_download.${format === "hdf5" ? "HDF5" : "Zarr"}DandiAPIDownloadBenchmark.time_download_${format}_dandi_api`
-      ] = {};
-      for (const preloaded of ["", "Preloaded"])
-        localSlicing[`time_local_slicing.${sliceClass}${preloaded}ContinuousSliceBenchmark.time_slice`] = {};
+      const name = `time_download.${format === "hdf5" ? "HDF5" : "Zarr"}DandiAPIDownloadBenchmark.time_download_${format}_dandi_api`;
+      downloads[name] = {};
       for (const modality of MODALITIES) {
-        const key = pyCase({ name: `${modality}TestCase`, https_url: MOCK_URL });
-        local[`time_local_file_reading.${readClass}.time_read_local_pynwb`][key] = [
-          0.4 * MODALITY_FACTOR[modality] * noise(),
+        downloads[name][pyCase({ name: `${modality}TestCase`, https_url: MOCK_URL })] = [
+          download * MODALITY_FACTOR[modality] * noise(),
         ];
-        downloads[
-          `time_download.${format === "hdf5" ? "HDF5" : "Zarr"}DandiAPIDownloadBenchmark.time_download_${format}_dandi_api`
-        ][key] = [download * MODALITY_FACTOR[modality] * noise()];
-        for (const preloaded of ["", "Preloaded"]) {
-          for (let size = 1; size <= 5; size++) {
-            const sliceKey = pyCase(
-              { name: `${modality}TestCase${size}`, https_url: MOCK_URL, object_name: "data" },
-              sliceRange(modality, size),
-            );
-            localSlicing[`time_local_slicing.${sliceClass}${preloaded}ContinuousSliceBenchmark.time_slice`][sliceKey] =
-              [0.02 * size * noise()];
-          }
-        }
       }
     }
     addRun(environmentIndex, downloads);
-    addRun(environmentIndex, local);
-    addRun(environmentIndex, localSlicing);
 
     if (environmentIndex === 1) {
       for (let round = 0; round < 2; round++) {

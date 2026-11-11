@@ -62,7 +62,6 @@ describe("main.ts boot", () => {
     expect(el("rankings-figure").querySelectorAll("svg.chart")).toHaveLength(4);
     expect(el("traffic-figure").querySelectorAll("svg.chart").length).toBeGreaterThan(0);
     expect(el("versions-figure").querySelectorAll("svg.chart")).toHaveLength(3);
-    expect(el("extrapolation-figure").children.length).toBeGreaterThan(0);
     expect(el("incremental-figure").querySelectorAll("svg.chart")).toHaveLength(3);
     expect(el("versions-legend").children.length).toBeGreaterThan(0);
   });
@@ -74,7 +73,6 @@ describe("main.ts boot", () => {
     select("versions-benchmark", "time_remote_slicing");
     expect(el("versions-figure").querySelectorAll("svg.chart")).toHaveLength(6);
     select("versions-axis", "pkg-h5py");
-    select("extrapolation-preload", "true");
     select("incremental-scale", "log");
     expect(el("incremental-figure").textContent).toContain("log scale");
   });

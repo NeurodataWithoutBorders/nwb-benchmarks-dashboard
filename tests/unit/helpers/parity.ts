@@ -22,7 +22,6 @@ export interface ExpectedContext {
   heatmap: Record<string, ExpectedRow[]>;
   file_open_network: { backend: ExpectedRow[]; pynwb: ExpectedRow[] };
   slicing_network: { not_preloaded: ExpectedRow[]; preloaded: ExpectedRow[] };
-  extrapolations: ExpectedRow[];
   incremental_overview: ExpectedRow[];
   incremental_curves: Record<string, ExpectedRow[]>;
 }

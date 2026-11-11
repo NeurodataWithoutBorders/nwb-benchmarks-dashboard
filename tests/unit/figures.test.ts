@@ -3,7 +3,6 @@
 import { describe, expect, it } from "vitest";
 import { readDatabase } from "../../src/lib/database";
 import { ALL_DATA, applyFilters } from "../../src/lib/filters";
-import { extrapolations } from "../../src/lib/figures/extrapolation";
 import { firstCrossover, incrementalOverview, incrementalSlicing } from "../../src/lib/figures/incremental";
 import { methodRankings } from "../../src/lib/figures/rankings";
 import { fileOpenTraffic, slicingTraffic } from "../../src/lib/figures/traffic";
@@ -20,7 +19,6 @@ describe("with nothing selected", () => {
     expect(fileOpenTraffic(nothing, "backend").points).toEqual([]);
     expect(slicingTraffic(nothing, false).panels.every((panel) => panel.points.length === 0)).toBe(true);
     expect(performanceAcrossVersions(nothing, "time_remote_slicing").panels).toEqual([]);
-    expect(extrapolations(nothing)).toEqual([]);
     expect(incrementalSlicing(nothing)).toEqual([]);
   });
 });

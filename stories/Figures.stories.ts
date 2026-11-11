@@ -3,14 +3,12 @@
 // snapshot comes out alike.
 import { readDatabase } from "../src/lib/database";
 import { ALL_DATA, applyFilters } from "../src/lib/filters";
-import { extrapolations } from "../src/lib/figures/extrapolation";
 import { incrementalSlicing } from "../src/lib/figures/incremental";
 import { methodRankings } from "../src/lib/figures/rankings";
 import { fileOpenTraffic, slicingTraffic } from "../src/lib/figures/traffic";
 import { performanceAcrossVersions } from "../src/lib/figures/versions";
 import { synthesizeMockBundle } from "../src/lib/mockBundle";
 import { createTooltip, renderLegend, type LegendEntry } from "../src/ui/charts/chrome";
-import { extrapolationLegend, renderExtrapolation } from "../src/ui/figures/extrapolation";
 import { incrementalLegend, renderIncremental } from "../src/ui/figures/incremental";
 import { renderRankings } from "../src/ui/figures/rankings";
 import { renderTraffic, trafficLegend } from "../src/ui/figures/traffic";
@@ -53,12 +51,6 @@ const FIGURES: Record<string, () => HTMLElement> = {
       renderVersions(target, figure, "Software environment", tooltip);
       return versionsLegend(figure);
     }),
-  Extrapolation: () =>
-    figureCard((target) => {
-      const fits = extrapolations(dataset);
-      renderExtrapolation(target, fits, false, tooltip);
-      return extrapolationLegend(fits, false);
-    }),
   Incremental: () =>
     figureCard((target) => {
       const panels = incrementalSlicing(dataset);
@@ -77,14 +69,6 @@ export const TrafficLight = { name: "Traffic vs runtime (light)", render: () => 
 export const TrafficDark = { name: "Traffic vs runtime (dark)", render: () => withTheme("dark", FIGURES.Traffic) };
 export const VersionsLight = { name: "Across versions (light)", render: () => withTheme("light", FIGURES.Versions) };
 export const VersionsDark = { name: "Across versions (dark)", render: () => withTheme("dark", FIGURES.Versions) };
-export const ExtrapolationLight = {
-  name: "Download vs streaming (light)",
-  render: () => withTheme("light", FIGURES.Extrapolation),
-};
-export const ExtrapolationDark = {
-  name: "Download vs streaming (dark)",
-  render: () => withTheme("dark", FIGURES.Extrapolation),
-};
 export const IncrementalLight = {
   name: "Incremental slicing (light)",
   render: () => withTheme("light", FIGURES.Incremental),

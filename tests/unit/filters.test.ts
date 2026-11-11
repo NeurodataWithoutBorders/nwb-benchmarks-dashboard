@@ -45,11 +45,10 @@ describe("the starting selection and the manuscript's", () => {
     expect(MANUSCRIPT_FIGURE_SELECTIONS).toEqual({
       rankings: "reference",
       traffic: "reference",
-      extrapolation: "reference",
       versions: "timepoints",
       incremental: "timepoints",
     });
-    expect(MANUSCRIPT_DESCRIPTION).toContain("the 2025-09-01 environment for Figures 3, 4a and 5");
+    expect(MANUSCRIPT_DESCRIPTION).toContain("the 2025-09-01 environment for Figures 3 and 5");
   });
 
   it("compares states regardless of order", () => {

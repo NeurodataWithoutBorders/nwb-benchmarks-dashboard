@@ -19,7 +19,6 @@ describe("main.ts boot with filters in the URL", () => {
     expect(el("rankings-note").textContent).toContain("No remote file-opening or slicing results");
     expect(el("traffic-note").textContent).toContain("No pairs of network-tracking and timing results");
     expect(el("versions-note").textContent).toContain("No PyNWB timing results");
-    expect(el("extrapolation-note").textContent).toContain("the filters leave none");
     expect(el("incremental-note").textContent).toContain("No incremental slicing results");
     expect(el<HTMLButtonElement>("rankings-csv-btn").disabled).toBe(true);
     expect(el("versions-legend").hidden).toBe(true);

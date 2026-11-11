@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readDatabase } from "../../src/lib/database";
 import { ALL_DATA, applyFilters } from "../../src/lib/filters";
-import { extrapolations } from "../../src/lib/figures/extrapolation";
 import { incrementalSlicing } from "../../src/lib/figures/incremental";
 import { methodRankings } from "../../src/lib/figures/rankings";
 import { fileOpenTraffic, slicingTraffic } from "../../src/lib/figures/traffic";
@@ -28,7 +27,6 @@ describe("synthesizeMockBundle", () => {
     expect(fileOpenTraffic(dataset, "pynwb").points.length).toBe(30);
     expect(slicingTraffic(dataset, true).panels.some((panel) => panel.zeroTraffic.length > 0)).toBe(true);
     expect(performanceAcrossVersions(dataset, "time_remote_file_reading").groups).toHaveLength(2);
-    expect(extrapolations(dataset).some((fit) => fit.crossover !== null)).toBe(true);
     expect(incrementalSlicing(dataset)).toHaveLength(3);
   });
 });
