@@ -10,7 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>NWB Benchmarks Dashboard</title>
     <link rel="icon" type="image/png" href="./assets/nwb-benchmarks-logo-DrWpPRVA.png" />
-    <script type="module" crossorigin src="./assets/index-2r7o9-5t.js"></script>
+    <script type="module" crossorigin src="./assets/index-CEjBBGkO.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-B41zYw_h.css">
   </head>
   <body>
@@ -229,32 +229,6 @@
           </div>
         </section>
 
-        <section class="card figure-card" id="extrapolation-card" aria-labelledby="extrapolation-title">
-          <div class="card-heading">
-            <h2 id="extrapolation-title">When is downloading first faster than streaming?</h2>
-          </div>
-          <p class="figure-lead">
-            Straight lines fitted to the time to stream increasing slice sizes (solid) and to download the file first
-            and read it locally (dashed); a cross marks where they meet. The paper's Figure 4a.
-          </p>
-          <div class="figure-controls">
-            <label class="figure-control">
-              <span>Slicing</span>
-              <select id="extrapolation-preload"></select>
-            </label>
-          </div>
-          <p id="extrapolation-note" class="figure-note" hidden></p>
-          <div id="extrapolation-figure" class="figure-panels"></div>
-          <ul id="extrapolation-legend" class="chart-legend" aria-label="Legend"></ul>
-          <div class="figure-actions">
-            <details id="extrapolation-table" class="figure-table">
-              <summary>Table</summary>
-            </details>
-            <button type="button" id="extrapolation-csv-btn" class="small">Download CSV</button>
-            <button type="button" id="extrapolation-svg-btn" class="small">Download SVG</button>
-          </div>
-        </section>
-
         <section class="card figure-card" id="incremental-card" aria-labelledby="incremental-title">
           <div class="card-heading">
             <h2 id="incremental-title">Streaming a whole file, slice by slice</h2>
@@ -262,7 +236,7 @@
           <p class="figure-lead">
             Measured cumulative time to open a file and read its array slice by slice along the whole time axis,
             streaming (solid) against downloading first (dashed); a cross marks the first slice where streaming falls
-            behind.
+            behind. It replaces the paper's extrapolated Figure 4a.
           </p>
           <div class="figure-controls">
             <label class="figure-control">
