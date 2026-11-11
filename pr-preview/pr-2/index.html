@@ -10,7 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>NWB Benchmarks Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="./assets/app-logo-UbQIdn86.svg" />
-    <script type="module" crossorigin src="./assets/index-C6SZVzbB.js"></script>
+    <script type="module" crossorigin src="./assets/index-D5KRPwZ4.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-CE9PwXvt.css">
   </head>
   <body>
@@ -146,7 +146,6 @@
         <section class="card figure-card" id="rankings-card" aria-labelledby="rankings-title">
           <div class="card-heading">
             <h2 id="rankings-title">Which method is fastest?</h2>
-            <button type="button" id="rankings-paper-btn" class="small">Show as in the paper</button>
           </div>
           <p class="figure-lead">
             Mean runtime of each method in each modality, for four remote-access tasks; a star marks the fastest method
@@ -173,7 +172,6 @@
         <section class="card figure-card" id="traffic-card" aria-labelledby="traffic-title">
           <div class="card-heading">
             <h2 id="traffic-title">What makes some methods faster?</h2>
-            <button type="button" id="traffic-paper-btn" class="small">Show as in the paper</button>
           </div>
           <p class="figure-lead">
             Average network traffic against average runtime, from separate network-tracking and timing runs; dashed
@@ -204,7 +202,6 @@
         <section class="card figure-card" id="versions-card" aria-labelledby="versions-title">
           <div class="card-heading">
             <h2 id="versions-title">How does performance change across versions?</h2>
-            <button type="button" id="versions-paper-btn" class="small">Show as in the paper</button>
           </div>
           <p class="figure-lead">
             Mean runtime of each PyNWB method across software environments, or across versions of one package, with 95%
@@ -235,7 +232,6 @@
         <section class="card figure-card" id="extrapolation-card" aria-labelledby="extrapolation-title">
           <div class="card-heading">
             <h2 id="extrapolation-title">When is downloading first faster than streaming?</h2>
-            <button type="button" id="extrapolation-paper-btn" class="small">Show as in the paper</button>
           </div>
           <p class="figure-lead">
             Straight lines fitted to the time to stream increasing slice sizes (solid) and to download the file first
