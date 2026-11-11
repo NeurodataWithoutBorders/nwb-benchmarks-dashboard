@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/assets/app-logo.svg" width="120" alt="NWB Benchmarks Dashboard logo"/>
+  <img src="src/assets/nwb-benchmarks-logo.png" width="240" alt="NWB Benchmarks logo"/>
   <h1 align="center">NWB Benchmarks Dashboard</h1>
   <p align="center">
     <a href="https://codecov.io/github/brain-bbqs/nwb-benchmarks-dashboard?branch=main"><img src="https://codecov.io/github/brain-bbqs/nwb-benchmarks-dashboard/coverage.svg?branch=main" alt="codecov"></a>

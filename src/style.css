@@ -55,6 +55,9 @@
   --chart-grid: #e9ecf3;
   --chart-frame: #c5cad8;
   --chart-guide: #a9afbf;
+
+  /* Behind the header logo: none in light, a light plate in dark so its navy lettering stays legible. */
+  --logo-plate: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -88,6 +91,7 @@
     --chart-grid: #252b3b;
     --chart-frame: #3a4156;
     --chart-guide: #5d6580;
+    --logo-plate: #e8eaf2;
   }
 }
 
@@ -121,6 +125,13 @@
   --chart-grid: #252b3b;
   --chart-frame: #3a4156;
   --chart-guide: #5d6580;
+  --logo-plate: #e8eaf2;
+}
+
+.header-logo {
+  background: var(--logo-plate);
+  border-radius: 8px;
+  padding: 0.15rem 0.3rem;
 }
 
 /* ------------------------------------------------------------------------------------------ */

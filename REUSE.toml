@@ -5,3 +5,10 @@ path = "**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Center for Open Neuroscience"
 SPDX-License-Identifier = "MIT"
+
+# The NWB Benchmarks logo, from github.com/NeurodataWithoutBorders/nwb-benchmarks (docs/assets), under its license.
+[[annotations]]
+path = "src/assets/nwb-benchmarks-logo.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2017-2023 The Regents of the University of California, through Lawrence Berkeley National Laboratory"
+SPDX-License-Identifier = "BSD-3-Clause-LBNL"

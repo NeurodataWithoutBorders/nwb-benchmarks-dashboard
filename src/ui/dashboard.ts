@@ -43,6 +43,11 @@ import { TRAFFIC_COLUMNS, renderTraffic, trafficLegend, trafficRows } from "./fi
 import { VERSIONS_COLUMNS, renderVersions, versionsLegend, versionsRows } from "./figures/versions";
 import { downloadCsv, downloadText, fillTable } from "./table";
 
+/** "1 machine", "34 machines". */
+function count(n: number, noun: string): string {
+  return `${n.toLocaleString("en-US")} ${noun}${n === 1 ? "" : "s"}`;
+}
+
 function fillSelect(select: HTMLSelectElement, options: [string, string][], value: string): void {
   select.replaceChildren(
     ...options.map(([optionValue, label]) => {
@@ -327,7 +332,7 @@ export function createDashboard(
         ? ` ${loaded.skipped.outdated.toLocaleString("en-US")} results files in formats older than the figures read are left out.`
         : "";
       els.dataSummary.textContent =
-        `${loaded.runs.length.toLocaleString("en-US")} results files from ${loaded.machines.size} machines and ${loaded.environments.size} software environments` +
+        `${count(loaded.runs.length, "results file")} from ${count(loaded.machines.size, "machine")} and ${count(loaded.environments.size, "software environment")}` +
         `${latest ? `, the latest from ${latest}` : ""}, ${source}.${skipped}`;
       if (isManuscriptSearch(location.search)) showManuscript();
       else setState(stateFromSearch(location.search) ?? defaultState());
