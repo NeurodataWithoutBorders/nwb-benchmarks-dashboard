@@ -4,9 +4,9 @@
 
 | URL                    | What it should look like                                                                          | Try it                                                                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `?test&mock_data`      | The dashboard on a synthesized bundle: one fake machine, two fake environments, every figure full | [Open](https://nwb-benchmarks-dashboard.brain-bbqs.org/?test&mock_data)      |
-| `?test&freeze_loading` | The loading card held part-way through a download (793 KB of 1.9 MB)                              | [Open](https://nwb-benchmarks-dashboard.brain-bbqs.org/?test&freeze_loading) |
-| `?test&load_error`     | The loading card after a failed download, with its retry button and the dropzone                  | [Open](https://nwb-benchmarks-dashboard.brain-bbqs.org/?test&load_error)     |
+| `?test&mock_data`      | The dashboard on a synthesized bundle: one fake machine, two fake environments, every figure full | [Open](https://brain-bbqs.github.io/nwb-benchmarks-dashboard/?test&mock_data)      |
+| `?test&freeze_loading` | The loading card held part-way through a download (793 KB of 1.9 MB)                              | [Open](https://brain-bbqs.github.io/nwb-benchmarks-dashboard/?test&freeze_loading) |
+| `?test&load_error`     | The loading card after a failed download, with its retry button and the dropzone                  | [Open](https://brain-bbqs.github.io/nwb-benchmarks-dashboard/?test&load_error)     |
 
 `?test` alone (without one of the above) is a no-op that never changes anything by itself.
 
