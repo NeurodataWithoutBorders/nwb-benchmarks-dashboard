@@ -38,8 +38,9 @@ OTHER_MACHINE_ID = "7143ac57434caee3a699fea97be5855842f2e0b7"
 
 # Which runs of the published bundle the fixture keeps, by environment: every run of the 2025-09-01
 # environment, one file-open and one slicing run of the two older
-# environments (for the performance-over-versions figure), and one round of the 2026-10-07
-# environment that carries a curated exclusion and the incremental slicing benchmark.
+# environments (for the performance-over-versions figure), one round of the 2026-10-07
+# environment that carries a curated exclusion and the incremental slicing benchmark, and one
+# incremental slicing run recorded under that environment's re-hashed ID (EQUIVALENT_ENVIRONMENT_IDS).
 FIXTURE_RESULT_TIMESTAMPS = {
     "052cb4d925793bbbc270d9384a60bc24023025b7": None,
     "9e225115ea6c99b60d419454a9457bb5db93c7b7": ["2025-11-20-19-31-41", "2025-11-21-10-03-37"],
@@ -54,6 +55,7 @@ FIXTURE_RESULT_TIMESTAMPS = {
         "2026-11-02-23-20-14",
         "2026-11-03-20-29-10",
     ],
+    "e833ef393e1bef9cf9915915b1604a87c7b004dc": ["2026-11-06-17-24-39"],
 }
 # Kept so the dashboard's own gates (minimum version, machine, date) have something to drop.
 FIXTURE_EXTRA_RESULTS = [

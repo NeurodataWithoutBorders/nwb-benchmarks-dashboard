@@ -28,6 +28,21 @@ export const ENVIRONMENT_TIMEPOINTS: Record<string, string> = {
 /** The environment the paper's single-environment figures (Figures 3 and 5) use. */
 export const PAPER_REFERENCE_TIMEPOINT = "2026-10-07";
 
+/** Environment IDs that describe the same installed packages as an environment above, with the one
+ * they stand for: `_preprocess_results` files results recorded under them as that environment's. */
+export const EQUIVALENT_ENVIRONMENT_IDS: Record<string, string> = {
+  // The environment file gained a `runtime` section (results format 5.0.0), which changed its ID
+  // without changing a package.
+  e833ef393e1bef9cf9915915b1604a87c7b004dc: "42bfe7119727f6ab276361065e27b6e5fa5bbdc9",
+};
+
+const CANONICAL_ENVIRONMENT = new Map(Object.entries(EQUIVALENT_ENVIRONMENT_IDS));
+
+/** The environment a run counts under: its own, or the one its environment is equivalent to. */
+export function canonicalEnvironmentId(environmentId: string): string {
+  return CANONICAL_ENVIRONMENT.get(environmentId) ?? environmentId;
+}
+
 /** Environment ID to its timepoint date. */
 export const TIMEPOINT_BY_ENVIRONMENT: Record<string, string> = Object.fromEntries(
   Object.entries(ENVIRONMENT_TIMEPOINTS).map(([date, id]) => [id, date]),

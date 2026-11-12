@@ -4,7 +4,12 @@
 // lives in filters.ts so that it can change without reading the bundle again.
 
 import { benchmarkNameParts, modalityOf, scalingValueOf, type Modality } from "./benchmarkNames";
-import { MINIMUM_RESULTS_VERSION, PACKAGES_OF_INTEREST, TIMEPOINT_BY_ENVIRONMENT } from "./curation";
+import {
+  MINIMUM_RESULTS_VERSION,
+  PACKAGES_OF_INTEREST,
+  TIMEPOINT_BY_ENVIRONMENT,
+  canonicalEnvironmentId,
+} from "./curation";
 import { parseParameterCase, type PyDict } from "./pyLiteral";
 import { isAtLeast, numericVersion } from "./versions";
 
@@ -201,7 +206,7 @@ function readRun(key: string, data: unknown): { run: Run; results: Record<string
       key,
       timestamp,
       commitHash: asString(record.commit_hash) ?? "",
-      environmentId,
+      environmentId: canonicalEnvironmentId(environmentId),
       machineId,
       databaseVersion,
     },

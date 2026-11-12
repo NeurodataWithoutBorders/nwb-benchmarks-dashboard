@@ -37,4 +37,4 @@ python -I tests/parity/generate_expected.py --bundle path/to/bundle.json.gz --nw
 ```
 
 The app itself never runs Python.
-The curation it shares with the Python code (the paper's machine IDs and environment dates, and the excluded samples) lives in `src/lib/curation.ts` and has to be kept in step by hand.
+The curation it shares with the Python code (the paper's machine IDs, environment dates and equivalent environments, and the excluded samples) lives in `src/lib/curation.ts` and has to be kept in step by hand.
