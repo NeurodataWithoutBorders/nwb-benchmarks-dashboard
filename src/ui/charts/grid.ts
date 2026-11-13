@@ -18,8 +18,10 @@ export interface GridOptions {
   minPanelWidth: number;
   /** Room around each panel's plot area, inside its cell. */
   padding: Padding;
-  /** Room under the grid, for the legend. */
+  /** Room under the grid, for a legend under it. */
   bottom: number;
+  /** Room right of the grid, for a legend beside it. */
+  right?: number;
 }
 
 export interface Domain {
@@ -38,7 +40,24 @@ export interface GridLayout {
   fy: (pixels: number) => number;
 }
 
-export function gridLayout({ width, panelHeights, minPanelWidth, padding, bottom }: GridOptions): GridLayout {
+/** How wide Plotly's modebar is with every button this app gives it; a figure narrower wraps it in two rows. */
+const MODEBAR_WIDTH = 340;
+
+/** Room above the grid for Plotly's modebar, so its buttons do not sit on the top panels' titles. */
+export function modebarRoom(width: number): number {
+  return width < MODEBAR_WIDTH ? 48 : 24;
+}
+
+export function gridLayout({
+  width: figureWidth,
+  panelHeights,
+  minPanelWidth,
+  padding,
+  bottom,
+  right = 0,
+}: GridOptions): GridLayout {
+  const width = figureWidth - right;
+  const above = modebarRoom(figureWidth);
   const count = panelHeights.length;
   const columns = Math.max(1, Math.min(count, Math.floor(width / minPanelWidth)));
   const rows = Math.ceil(count / columns);
@@ -62,10 +81,10 @@ export function gridLayout({ width, panelHeights, minPanelWidth, padding, bottom
     top += padding.top + rowHeight + padding.bottom;
   });
   return {
-    height: innerHeight + bottom,
+    height: above + innerHeight + bottom,
     columns,
     domains,
-    margin: { l: 0, r: 0, t: 0, b: bottom },
+    margin: { l: 0, r: right, t: above, b: bottom },
     fx: (pixels) => pixels / width,
     fy: (pixels) => pixels / innerHeight,
   };
@@ -75,6 +94,12 @@ export function gridLayout({ width, panelHeights, minPanelWidth, padding, bottom
 export function axisNames(index: number): { x: string; y: string; xaxis: string; yaxis: string } {
   const suffix = index === 0 ? "" : String(index + 1);
   return { x: `x${suffix}`, y: `y${suffix}`, xaxis: `xaxis${suffix}`, yaxis: `yaxis${suffix}` };
+}
+
+/** How wide a vertical legend of these labels is, from the gap before it to its longest label. */
+export function legendWidth(labels: Iterable<string>, fontSize = 12): number {
+  const longest = Math.max(0, ...[...labels].map((label) => label.length));
+  return Math.round(64 + longest * fontSize * 0.6);
 }
 
 /** How much room a horizontal legend of `entries` entries takes at this width. */

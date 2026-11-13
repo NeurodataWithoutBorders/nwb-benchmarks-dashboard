@@ -15,7 +15,7 @@ import {
   methodMarker,
 } from "../../lib/methods";
 import { extent } from "../../lib/scale";
-import { axisNames, gridLayout, legendHeight, type Domain, type GridLayout } from "../charts/grid";
+import { axisNames, gridLayout, legendHeight, legendWidth, type Domain, type GridLayout } from "../charts/grid";
 import {
   axis,
   baseLayout,
@@ -63,6 +63,10 @@ function pointHover(heading: string, point: TrafficPoint, metric: string): strin
 }
 
 const PADDING = { top: 34, right: 14, bottom: 48, left: 62 };
+/** From this width on, the legend stands beside the panels, for all of them, rather than under them. */
+const SIDE_LEGEND_MIN_WIDTH = 760;
+/** The gap between the panels and a legend beside them. */
+const SIDE_LEGEND_GAP = 12;
 
 /** One log-log panel: its axes, and the dashed lines of constant throughput across it. */
 interface LogPanel {
@@ -252,14 +256,29 @@ export function trafficFigure(
   const titles = [...fileOpen.map((figure) => figure.title), ...slicing.panels.map((panel) => panel.modality)];
   const methods = new Set([...fileOpen.flatMap((figure) => figure.methods), ...slicing.methods].map(methodLabel));
   const fileOpenModalities = Object.keys(MODALITY_MARKERS);
+  const legendLabels = [...methods, ...fileOpenModalities.map(modalityLegendLabel)];
+  const beside = width >= SIDE_LEGEND_MIN_WIDTH;
+  const right = beside ? legendWidth(legendLabels) : 0;
   const grid = gridLayout({
     width,
-    panelHeights: titles.map(() => panelHeight(width, titles.length)),
+    panelHeights: titles.map(() => panelHeight(width - right, titles.length)),
     minPanelWidth: 340,
     padding: PADDING,
-    bottom: legendHeight(methods.size + fileOpenModalities.length, width),
+    bottom: beside ? 8 : legendHeight(legendLabels.length, width),
+    right,
   });
   const layout = baseLayout(theme, grid, true);
+  if (beside) {
+    layout.legend = {
+      ...(layout.legend as object),
+      orientation: "v",
+      x: 1 + grid.fx(SIDE_LEGEND_GAP),
+      xanchor: "left",
+      y: 0.5,
+      yanchor: "middle",
+      tracegroupgap: 4,
+    };
+  }
   const annotations = layout.annotations as Record<string, unknown>[];
   const legend = new LegendTracker();
   const data: Trace[] = [];
@@ -374,12 +393,16 @@ export function trafficFigure(
       x: [null],
       y: [null],
       marker: { color: theme.text, symbol: plotlySymbol(MODALITY_MARKERS[modality]), size: 8 },
-      name: `${modality} (file opening)`,
+      name: modalityLegendLabel(modality),
       legendgroup: `modality-${modality}`,
       hoverinfo: "skip",
     });
   }
   return { data, layout };
+}
+
+function modalityLegendLabel(modality: string): string {
+  return `${modality} (file opening)`;
 }
 
 function noData(domain: Domain, message: string, theme: ChartTheme): Record<string, unknown> {

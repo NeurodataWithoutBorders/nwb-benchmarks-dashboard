@@ -2,7 +2,7 @@
 // The Plotly layer: the subplot grid, the theme's colors, and the wrapper with usage-page's modebar.
 import Plotly from "plotly.js-cartesian-dist-min";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { axisNames, gridLayout, legendHeight } from "../../src/ui/charts/grid";
+import { axisNames, gridLayout, legendHeight, legendWidth, modebarRoom } from "../../src/ui/charts/grid";
 import {
   clearFigure,
   drawFigure,
@@ -22,19 +22,36 @@ describe("the subplot grid", () => {
   it("fits as many columns as the width allows, rows as tall as their tallest panel", () => {
     const grid = gridLayout({ width: 1000, panelHeights: [100, 200, 150], minPanelWidth: 300, padding, bottom: 40 });
     expect(grid.columns).toBe(3);
-    expect(grid.height).toBe(30 + 200 + 50 + 40);
+    // Above the grid, room for the modebar; under it, for the legend.
+    expect(grid.height).toBe(24 + 30 + 200 + 50 + 40);
     // Each panel's plot sits inside its cell, below the row's padding.
     expect(grid.domains[0].x).toEqual([60 / 1000, (1000 / 3 - 10) / 1000]);
     expect(grid.domains[0].y).toEqual([1 - 230 / 280, 1 - 30 / 280]);
     expect(grid.fx(100)).toBe(0.1);
     expect(grid.fy(28)).toBe(0.1);
-    expect(grid.margin).toEqual({ l: 0, r: 0, t: 0, b: 40 });
+    expect(grid.margin).toEqual({ l: 0, r: 0, t: 24, b: 40 });
   });
 
-  it("stacks panels in one column when the width is narrow", () => {
+  it("leaves room beside the grid for a legend there", () => {
+    const grid = gridLayout({
+      width: 1200,
+      panelHeights: [100, 100],
+      minPanelWidth: 300,
+      padding,
+      bottom: 0,
+      right: 200,
+    });
+    expect(grid.margin.r).toBe(200);
+    expect(grid.domains[1].x).toEqual([(500 + 60) / 1000, (1000 - 10) / 1000]);
+    expect(grid.fx(100)).toBe(0.1);
+  });
+
+  it("stacks panels in one column when the width is narrow, under a modebar wrapped in two rows", () => {
     const grid = gridLayout({ width: 320, panelHeights: [100, 100], minPanelWidth: 400, padding, bottom: 0 });
     expect(grid.columns).toBe(1);
     expect(grid.domains[1].y[1]).toBeLessThan(grid.domains[0].y[0]);
+    expect(grid.margin.t).toBe(modebarRoom(320));
+    expect(modebarRoom(320)).toBe(2 * modebarRoom(1000));
   });
 
   it("names subplot axes as Plotly does, and sizes a legend", () => {
@@ -43,6 +60,8 @@ describe("the subplot grid", () => {
     expect(legendHeight(0, 500)).toBe(16);
     expect(legendHeight(7, 500)).toBe(24 + 4 * 22);
     expect(legendHeight(3, 100)).toBe(24 + 3 * 22);
+    expect(legendWidth(["HDF5", "Ecephys (file opening)"])).toBe(Math.round(64 + 22 * 7.2));
+    expect(legendWidth([])).toBe(64);
   });
 });
 

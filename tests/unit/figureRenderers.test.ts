@@ -116,6 +116,17 @@ describe("traffic", () => {
     expect(annotationTexts(trafficFigure(fileOpen, slicing, narrow))).toContain("<b>a)</b>");
   });
 
+  it("stands the legend beside the panels where there is room, and under them where there is not", () => {
+    const fileOpen = [fileOpenTraffic(dataset, "backend")];
+    const slicing = slicingTraffic(dataset, true);
+    const beside = trafficFigure(fileOpen, slicing, wide).layout;
+    expect(beside.legend).toMatchObject({ orientation: "v", xanchor: "left", y: 0.5, yanchor: "middle" });
+    expect((beside.margin as { r: number }).r).toBeGreaterThan(150);
+    const under = trafficFigure(fileOpen, slicing, narrow).layout;
+    expect(under.legend).toMatchObject({ orientation: "h", y: 0, yanchor: "top" });
+    expect((under.margin as { r: number }).r).toBe(0);
+  });
+
   it("marks panels without data, and a metric that is not bytes draws no throughput lines", () => {
     const blank = trafficFigure([fileOpenTraffic(empty, "backend")], slicingTraffic(empty, false), wide);
     expect(annotationTexts(blank).filter((text) => text === "No data")).toHaveLength(4);
