@@ -80,6 +80,8 @@ export interface DashboardOptions {
 export interface Dashboard {
   /** Shows a newly loaded database: the manuscript view at `?manuscript`, else the URL's search. */
   show: (db: Database) => void;
+  /** Says something about the results under the totals, such as that they could not be checked. */
+  note: (text: string) => void;
 }
 
 export function createDashboard(
@@ -382,5 +384,5 @@ export function createDashboard(
     }
   }
 
-  return { show };
+  return { show, note: (text) => setNote(els.summary.note, text) };
 }

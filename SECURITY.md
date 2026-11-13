@@ -27,6 +27,8 @@ Also keep an eye on:
 - **Minimal runtime dependencies.** The template ships with none.
   Every added runtime dependency is something that could be compromised upstream and ship code that reads `localStorage`; don't add one without a reason.
   This app has one, Plotly (`plotly.js-cartesian-dist-min`, bundled rather than loaded from a CDN), which draws the figures; its button that uploads a chart to Plotly Cloud is turned off (`showSendToCloud: false`), so nothing leaves the browser.
+- **Stored data is public data.** The only thing the app keeps besides the theme is the last public results bundle it downloaded, in Cache Storage (`src/lib/bundleCache.ts`); it holds no credential.
+  A kept copy is read through the same code as a download, so it needs no more trust than the published bundle does.
 
 ## Handling a "clear text storage" alert on a new credential
 

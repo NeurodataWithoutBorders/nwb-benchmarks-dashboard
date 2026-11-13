@@ -125,6 +125,20 @@ test.describe("the dashboard", () => {
     await expect(page.locator("#rankings-plot")).not.toContainText("a)");
   });
 
+  test("draws the results kept from the last visit, and says so when newer ones cannot be checked for", async ({
+    page,
+  }) => {
+    await serveParityBundle(page);
+    await page.goto("/");
+    await expect(page.locator("#dashboard")).toBeVisible();
+
+    await page.unroute("https://raw.githubusercontent.com/**/bundle.json.gz");
+    await page.route("https://raw.githubusercontent.com/**/bundle.json.gz", (route) => route.abort());
+    await page.reload();
+    await expect(page.locator("#dashboard")).toBeVisible();
+    await expect(page.locator("#summary-note")).toContainText(/^Showing the results saved on \d{4}-\d{2}-\d{2}/);
+  });
+
   test("reports a failed download, and refreshes the results in place", async ({ page }) => {
     await page.goto("/?test&load_error");
     await expect(page.locator("#load-error")).toContainText("test injection");

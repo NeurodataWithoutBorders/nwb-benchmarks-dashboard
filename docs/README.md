@@ -11,7 +11,7 @@
 `?test` alone (without one of the above) is a no-op that never changes anything by itself.
 
 Every fake is obviously fake (the mock machine is `TestInjectionMachine`, its environments are `test-a-environment` and `test-b-environment`, its URLs are under `test-injection.invalid`, and the injected error says it is one) so it is never mistaken for real data.
-Nothing is written to `localStorage`, so all of the above are safe to try at any time.
+Nothing is written to `localStorage`, and none of them reads or replaces the results kept from an earlier visit, so all of the above are safe to try at any time.
 
 `mock_data` builds its bundle in `src/lib/mockBundle.ts` from fixed formulas and a seeded generator and hands it to the same reading, filtering and drawing code the published bundle goes through, at the one point main.ts would otherwise have fetched it.
 The Chromatic dashboard snapshots use it to capture every figure deterministically.
@@ -35,6 +35,15 @@ The dashboard reads every record in the bundle, including those written before f
 Those name the machine and environment by hash (or not at all, leaving them to the file's name), and record each test case as a tuple of positional parameters (URL, NWB object, slice range) with no case name.
 Their modality comes from a named case on the same file elsewhere in the bundle, or else from the NWB object's type, and their slice sizes are ranked apart from the current suite's so they do not renumber its slices.
 Their benchmarks carry the method names of their day, so they appear in the figures that plot every method present (the slicing traffic panels) and in every table, but not in the rankings or the comparison across versions, which plot the current suite's methods as `generate_figures` does.
+
+## Keeping the results between visits
+
+The page keeps the last results bundle it downloaded in the browser's Cache Storage (`src/lib/bundleCache.ts`), so a return visit draws the dashboard at once and then checks for newer results.
+raw.githubusercontent.com sends the bundle with an `ETag`, but neither exposes it to scripts nor answers the preflight a script's own `If-None-Match` would need.
+The check is therefore the browser's: a `no-cache` fetch revalidates its own HTTP-cached copy against the `ETag`, so an unchanged bundle costs a `304` with no body, and the bytes that come back are compared with the kept copy's SHA-256.
+Only new bytes are read and drawn again; if the check fails, the summary says which day's results it shows.
+The refresh button always downloads anew.
+To start from nothing, clear the site's data in the browser.
 
 ## The manuscript view
 

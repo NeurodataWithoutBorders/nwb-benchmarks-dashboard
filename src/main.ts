@@ -1,6 +1,7 @@
 import "./style.css";
 import { initThemeToggle, renderVersion } from "@brain-bbqs/ui";
 import { BundleError, RESULTS_BUNDLE_URL, decodeBundle, fetchBundleBytes } from "./lib/bundle";
+import { digestOf, readStoredBundle, storeBundle, type StoredBundle } from "./lib/bundleCache";
 import { readDatabase, type Bundle, type Database } from "./lib/database";
 import { synthesizeMockBundle } from "./lib/mockBundle";
 import { THEME_KEY } from "./lib/settings";
@@ -28,6 +29,10 @@ initThemeToggle(shell.themeToggle, { storageKey: THEME_KEY });
 // ---------------------------------------------------------------------------------------------
 
 const injection = readTestInjection(window.location.search);
+/** Whether a `?test` injection stands in for the published bundle (bare `?test` changes nothing). */
+const faked = Boolean(injection?.mockData || injection?.freezeLoading || injection?.loadError);
+/** Where the last download is kept for the next visit: never a fake's, and only where the browser has it. */
+const storage: CacheStorage | undefined = !faked && "caches" in window ? window.caches : undefined;
 const loader = createLoader(els);
 let current: AbortController | null = null;
 
@@ -37,27 +42,49 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** The published bundle, or, under a `?test` injection, its stand-in at this one point. */
-async function obtainPublished(signal: AbortSignal, fresh: boolean): Promise<Bundle> {
+/** Under a `?test` injection, its stand-in for the published bundle, at this one point. */
+async function fakeBundle(): Promise<Bundle> {
   if (injection?.mockData) return synthesizeMockBundle();
   if (injection?.freezeLoading) {
     loader.downloading(FROZEN_PROGRESS);
     return new Promise<Bundle>(() => {});
   }
-  if (injection?.loadError) throw new BundleError(INJECTED_LOAD_ERROR);
-  const bytes = await fetchBundleBytes(RESULTS_BUNDLE_URL, {
-    signal,
-    fresh,
-    onProgress: (progress) => loader.downloading(progress),
-  });
-  loader.reading("the results");
-  return decodeBundle(bytes);
+  throw new BundleError(INJECTED_LOAD_ERROR);
 }
 
-/** Downloads the results again in place, for the summary's refresh button. */
+/** Downloads the published bundle, reads it, and keeps it for the next visit. */
+async function download(options: Parameters<typeof fetchBundleBytes>[1]): Promise<Bundle> {
+  const bytes = await fetchBundleBytes(RESULTS_BUNDLE_URL, options);
+  loader.reading("the results");
+  const bundle = await decodeBundle(bytes);
+  await keep(bytes);
+  return bundle;
+}
+
+/** Keeps the bundle's bytes for the next visit. */
+async function keep(bytes: Uint8Array): Promise<void> {
+  try {
+    await storeBundle(storage, RESULTS_BUNDLE_URL, bytes);
+  } catch {
+    // Only a convenience: a browser that refuses to keep a copy still shows the results.
+  }
+}
+
+/** The copy kept from an earlier visit, read, or null when there is none or it no longer reads. */
+async function readKept(): Promise<{ bundle: Bundle; kept: StoredBundle } | null> {
+  try {
+    const kept = await readStoredBundle(storage, RESULTS_BUNDLE_URL);
+    return kept ? { bundle: await decodeBundle(kept.bytes), kept } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Downloads the results again in place, for the refresh button. */
 async function refresh(): Promise<Database> {
   try {
-    return readDatabase(await obtainPublished(new AbortController().signal, true));
+    if (faked) return readDatabase(await fakeBundle());
+    return readDatabase(await download({ fresh: true }));
   } catch (error) {
     throw new Error(errorMessage(error), { cause: error });
   }
@@ -65,7 +92,29 @@ async function refresh(): Promise<Database> {
 
 const dashboard = createDashboard(els, window.location, { refresh });
 
-/** The first load, with the loading card; a retry supersedes a load still running. */
+function show(db: Database): void {
+  els.loadCard.hidden = true;
+  els.dashboard.hidden = false;
+  dashboard.show(db);
+}
+
+/** After drawing a kept copy: has the browser revalidate its own HTTP-cached copy against the bundle's
+ * ETag (a 304 when nothing changed), and redraws only if the bytes that come back are new. */
+async function checkForNewer(kept: StoredBundle): Promise<void> {
+  try {
+    const bytes = await fetchBundleBytes(RESULTS_BUNDLE_URL, { fresh: true });
+    if ((await digestOf(bytes)) === kept.digest) return;
+    const bundle = await decodeBundle(bytes);
+    await keep(bytes);
+    dashboard.show(readDatabase(bundle));
+  } catch {
+    const saved = kept.storedAt.slice(0, 10);
+    dashboard.note(`Showing the results saved${saved ? ` on ${saved}` : ""}, as newer ones could not be checked for.`);
+  }
+}
+
+/** The first load: the copy kept from an earlier visit at once, then a check for newer results; or,
+ * without one, a download behind the loading card. A retry supersedes a load still running. */
 async function load(): Promise<void> {
   current?.abort();
   const controller = new AbortController();
@@ -74,13 +123,22 @@ async function load(): Promise<void> {
   els.loadCard.hidden = false;
   loader.downloading(null);
   try {
-    const bundle = await obtainPublished(controller.signal, false);
+    if (faked) {
+      show(readDatabase(await fakeBundle()));
+      return;
+    }
+    const kept = await readKept();
+    if (kept) {
+      show(readDatabase(kept.bundle));
+      void checkForNewer(kept.kept);
+      return;
+    }
+    const bundle = await download({
+      signal: controller.signal,
+      onProgress: (progress) => loader.downloading(progress),
+    });
     if (controller.signal.aborted) return;
-    loader.reading("the results");
-    const db = readDatabase(bundle);
-    els.loadCard.hidden = true;
-    els.dashboard.hidden = false;
-    dashboard.show(db);
+    show(readDatabase(bundle));
   } catch (error) {
     if (controller.signal.aborted) return;
     loader.failed(errorMessage(error));
