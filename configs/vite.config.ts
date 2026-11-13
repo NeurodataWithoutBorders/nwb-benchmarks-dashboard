@@ -9,6 +9,12 @@ export default defineConfig(
     rootDir: new URL("..", import.meta.url),
     overrides: {
       plugins: [prePaintPlugin({ themeKey: THEME_KEY })],
+      build: {
+        // Plotly, the figures' one runtime dependency, is most of the page's script (about 1.4 MB,
+        // 0.5 MB gzipped): it gets a chunk of its own, which a browser keeps cached across releases.
+        chunkSizeWarningLimit: 1500,
+        rolldownOptions: { output: { codeSplitting: { groups: [{ name: "plotly", test: /plotly\.js/ }] } } },
+      },
     },
   }),
 );

@@ -1,8 +1,8 @@
 /* The shell every BBQS companion app shares comes from @brain-bbqs/ui: the theme tokens (light,
-   dark via the OS preference or the header toggle), the page defaults, the header, watermark and
-   footer bar, the shared controls, and the "What's New" modal. Set a token or knob (see that
-   package's README) on :root below to change it. The template draws its own dropzone, so it skips
-   the package's dropzone.css.
+   dark via the OS preference or the header toggle), the page defaults, the header and footer bar,
+   and the shared controls. Set a token or knob (see that
+   package's README) on :root below to change it. The app draws its own dropzone, so it skips the
+   package's dropzone.css.
    CSS allows @import only at the top, so every rule below follows the shared ones. */
 @import "@brain-bbqs/ui/styles/tokens.css";
 @import "@brain-bbqs/ui/styles/base.css";
@@ -10,87 +10,676 @@
 @import "@brain-bbqs/ui/styles/controls.css";
 @import "@brain-bbqs/ui/styles/dataset-picker.css";
 @import "@brain-bbqs/ui/styles/human-subjects.css";
-@import "@brain-bbqs/ui/styles/whats-new.css";
 
 /* ------------------------------------------------------------------------------------------ */
-/* Cards */
+/* Tokens: the figures' palette. Light here; the two dark blocks below must stay identical.     */
 /* ------------------------------------------------------------------------------------------ */
 
-.card-note {
-  margin: 1rem 0 0;
+:root {
+  --page-max-width: 1120px;
+
+  /* The access methods, in the paper's colors (src/lib/methods.ts names each by its token). */
+  --method-remfile: #0072b2;
+  --method-remfile-cache: #56b4e9;
+  --method-fsspec-https: #009e73;
+  --method-fsspec-https-cache: #cc79a7;
+  --method-fsspec-s3: #d55e00;
+  --method-fsspec-s3-cache: #e69f00;
+  --method-ros3: #000000;
+  --method-lindi: #999999;
+  --method-zarr: #f0e442;
+  --method-zarr-unconsolidated: #8c510a;
+  /* Methods outside that palette, by a hash of their name. */
+  --method-other-1: #7f3c8d;
+  --method-other-2: #11a579;
+  --method-other-3: #3969ac;
+  --method-other-4: #f2b701;
+  --method-other-5: #e73f74;
+  --method-other-6: #80ba5a;
+  /* Download + local read, by file format. */
+  --download-hdf5: #006d2c;
+  --download-zarr: #a50f15;
+  --download-other: #08519c;
+
+  /* The heatmap's sequential ramp, low to high runtime. */
+  --heat-0: #fff7ec;
+  --heat-1: #fdd49e;
+  --heat-2: #fc8d59;
+  --heat-3: #d7301f;
+  --heat-4: #7f0000;
+
+  /* Chart chrome: gridlines, the plot frame and dashed guides such as throughput lines. */
+  --chart-grid: #e9ecf3;
+  --chart-frame: #c5cad8;
+  --chart-guide: #a9afbf;
+
+  /* Behind the header logo: none in light, a light plate in dark so its navy lettering stays legible. */
+  --logo-plate: transparent;
+
+  /* The search's pill and its dropdown, after CodyCBakerPhD/website's. */
+  --search-shadow: 0 1px 3px rgb(16 42 67 / 0.06), 0 1px 2px rgb(16 42 67 / 0.04);
+  --search-ring: rgb(79 70 229 / 0.2);
+  --popup-shadow: 0 8px 24px rgb(16 42 67 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --method-remfile: #4aa3df;
+    --method-remfile-cache: #8fd0f5;
+    --method-fsspec-https: #2fc79a;
+    --method-fsspec-https-cache: #e39ccc;
+    --method-fsspec-s3: #f07a2a;
+    --method-fsspec-s3-cache: #f5b833;
+    --method-ros3: #f0f0f0;
+    --method-lindi: #a0a0a0;
+    --method-zarr: #f0e442;
+    --method-zarr-unconsolidated: #c98a3d;
+    --method-other-1: #b77fc6;
+    --method-other-2: #4fd1a5;
+    --method-other-3: #7aa2e3;
+    --method-other-4: #ffd24d;
+    --method-other-5: #ff7aa5;
+    --method-other-6: #a8dc85;
+    --download-hdf5: #41ab5d;
+    --download-zarr: #ef3b2c;
+    --download-other: #4292c6;
+    --heat-0: #2a2320;
+    --heat-1: #6e3416;
+    --heat-2: #b4471c;
+    --heat-3: #e86b3a;
+    --heat-4: #ffb08a;
+    --chart-grid: #252b3b;
+    --chart-frame: #3a4156;
+    --chart-guide: #5d6580;
+    --logo-plate: #e8eaf2;
+    --search-shadow: 0 1px 3px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.35);
+    --search-ring: rgb(129 140 248 / 0.28);
+    --popup-shadow: 0 10px 26px rgb(0 0 0 / 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  --method-remfile: #4aa3df;
+  --method-remfile-cache: #8fd0f5;
+  --method-fsspec-https: #2fc79a;
+  --method-fsspec-https-cache: #e39ccc;
+  --method-fsspec-s3: #f07a2a;
+  --method-fsspec-s3-cache: #f5b833;
+  --method-ros3: #f0f0f0;
+  --method-lindi: #a0a0a0;
+  --method-zarr: #f0e442;
+  --method-zarr-unconsolidated: #c98a3d;
+  --method-other-1: #b77fc6;
+  --method-other-2: #4fd1a5;
+  --method-other-3: #7aa2e3;
+  --method-other-4: #ffd24d;
+  --method-other-5: #ff7aa5;
+  --method-other-6: #a8dc85;
+  --download-hdf5: #41ab5d;
+  --download-zarr: #ef3b2c;
+  --download-other: #4292c6;
+  --heat-0: #2a2320;
+  --heat-1: #6e3416;
+  --heat-2: #b4471c;
+  --heat-3: #e86b3a;
+  --heat-4: #ffb08a;
+  --chart-grid: #252b3b;
+  --chart-frame: #3a4156;
+  --chart-guide: #5d6580;
+  --logo-plate: #e8eaf2;
+  --search-shadow: 0 1px 3px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.35);
+  --search-ring: rgb(129 140 248 / 0.28);
+  --popup-shadow: 0 10px 26px rgb(0 0 0 / 0.55);
+}
+
+/* Half as tall again as the shell's 3rem, so the NWB Benchmarks mark reads at a glance. */
+.header-logo {
+  height: 4.5rem;
+  background: var(--logo-plate);
+  border-radius: 8px;
+  padding: 0.15rem 0.3rem;
+}
+
+/* The tooltip below is placed against the whole group, so it lines up with the page's right edge. */
+.header-actions {
+  position: relative;
+  gap: 0.5rem;
+}
+
+/* Wide enough for the subtitle on one line under the title, beside the taller logo. */
+.site-title {
+  max-width: 40rem;
+}
+
+/* The manuscript toggle, and the tooltip that says what it does, shown on hover or keyboard focus. */
+.header-control {
+  display: flex;
+}
+
+.header-tooltip {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.6rem 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--popup-shadow);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: left;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  pointer-events: none;
+}
+
+.header-control:hover .header-tooltip,
+.manuscript-toggle:focus-visible + .header-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* The manuscript toggle borrows the theme toggle's outlined circle, and fills it while it is on. */
+.manuscript-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--card);
 }
 
 /* ------------------------------------------------------------------------------------------ */
-/* The dropzone, and the summary of what it loaded */
+/* Loading the results                                                                          */
 /* ------------------------------------------------------------------------------------------ */
 
-.dropzone {
-  border: 2px dashed var(--border);
-  border-radius: 12px;
-  padding: 2rem 1rem;
+.load-status {
+  margin: 0 0 0.75rem;
+}
+
+#load-progress {
+  margin-bottom: 1rem;
+}
+
+.load-error {
+  color: var(--err);
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+#retry-load-btn {
+  margin-bottom: 1rem;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Totals, after dandi/usage-page's: each label over its value, the labels' rules joined into one   */
+/* ------------------------------------------------------------------------------------------ */
+
+.summary {
+  margin: 1.25rem 0 1.5rem;
+}
+
+.totals-table {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 14px;
+  max-width: 100%;
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+
+.totals-table tbody {
+  display: contents;
+}
+
+.totals-table tr {
+  display: flex;
+  flex-direction: column;
+}
+
+.totals-table th,
+.totals-table td {
+  padding-left: clamp(8px, 1.2vw, 16px);
+  padding-right: clamp(8px, 1.2vw, 16px);
+  white-space: nowrap;
+}
+
+.totals-table th {
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.totals-table td {
+  font-size: clamp(1.15rem, 0.85rem + 1.1vw, 1.5rem);
+  font-weight: 300;
   text-align: center;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  padding-top: 8px;
+}
+
+.summary-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.summary-note {
+  margin: 0;
+}
+
+.summary-updated {
+  margin: 0 0 0 auto;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
   color: var(--muted);
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
 }
-.dropzone:hover,
-.dropzone.dragover {
-  border-color: var(--accent);
+
+.icon-button:hover:not(:disabled) {
+  color: var(--text);
   background: var(--accent-soft);
 }
 
-.dz-inner p {
-  margin: 0.5rem 0 0;
+.icon-button:disabled {
+  cursor: progress;
 }
 
-.dz-icon {
-  font-size: 2rem;
-  line-height: 1;
+.icon-button[aria-busy="true"] svg {
+  animation: spin 1s linear infinite;
 }
 
-/* A button that reads as the link in the sentence it sits in, not as a control beside it. */
-.dz-browse {
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Search, after CodyCBakerPhD/website's record search                                          */
+/* ------------------------------------------------------------------------------------------ */
+
+.search {
+  margin: 0 0 1.5rem;
+}
+
+.search-field {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1.1rem;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.search-field input[type="search"] {
+  width: 100%;
+  padding: 0.7rem 1.25rem 0.7rem 2.9rem;
   font: inherit;
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  text-decoration: underline;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--search-shadow);
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+
+.search-field input[type="search"]::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.search-field input[type="search"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--search-ring);
+}
+
+.search-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: min(30rem, 70vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--popup-shadow);
+}
+
+.search-suggestions li {
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.search-group-label {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.search-option {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 9px;
   cursor: pointer;
 }
 
-.dz-hint {
-  font-size: 0.85rem;
+.search-option[aria-selected="true"] {
+  background: var(--accent-soft);
 }
 
-.dz-reject {
-  color: var(--err);
-  font-weight: 600;
-}
-
-.file-summary {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-}
-
-.file-summary-name {
-  font-weight: 600;
+/* Long values (environment labels) wrap rather than run past a phone's edge. */
+.search-option-term {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.9em;
   overflow-wrap: anywhere;
 }
 
-.file-summary-stats {
+.search-option-key {
+  color: var(--accent);
+}
+
+.search-option-value {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* A filter's description lines up in a column beside its key. */
+.search-option-filter .search-option-term {
+  flex: 0 0 auto;
+  min-width: 14ch;
+}
+
+.search-option-hint,
+.search-option-count {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.search-option-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.search-note {
+  margin: 0 0 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 0.85em !important;
+}
+
+.search-tip {
+  margin-top: 6px;
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 0.82em !important;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Figure cards                                                                                 */
+/* ------------------------------------------------------------------------------------------ */
+
+.figure-card .card-heading {
+  flex-wrap: wrap;
+}
+
+.figure-lead {
+  margin: -0.5rem 0 1rem;
   color: var(--muted);
   font-size: 0.9rem;
 }
 
+/* The Plot | Table switch centred over the figure, its settings' gear snug to its right. */
+.figure-controls {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.figure-controls .radio-toggle {
+  grid-column: 2;
+}
+
+/* After dandi/usage-page's: a bordered gear, and the panel of the figure's options under the switch. */
+.settings-wrapper {
+  grid-column: 3;
+  justify-self: start;
+  align-self: stretch;
+  display: flex;
+}
+
+/* As tall as the switch beside it, and square. */
+.settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.settings-btn:hover,
+.settings-btn[aria-expanded="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.settings-panel {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: max-content;
+  min-width: 15rem;
+  max-width: min(24rem, calc(100vw - 3rem));
+  padding: 0.75rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--popup-shadow);
+}
+
+.settings-panel[hidden] {
+  display: none;
+}
+
+.settings-panel-title {
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.settings-row select {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* The Plot | Table switch, after dandi/usage-page's radio toggle. */
+.radio-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.radio-toggle input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.radio-toggle label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.radio-toggle label:hover {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.radio-toggle input[type="radio"]:checked + label {
+  background: var(--accent);
+  color: var(--card);
+}
+
+.radio-toggle input[type="radio"]:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.figure-note {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.figure-plot {
+  min-width: 0;
+}
+
+.figure-table-view .data-table-wrapper {
+  margin-top: 0;
+}
+
+.figure-table-view button {
+  margin-top: 0.75rem;
+}
+
+.data-table-wrapper {
+  margin-top: 0.5rem;
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.data-table {
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  width: 100%;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.3rem 0.55rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+}
+
+.data-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .dropzone {
+  .icon-button[aria-busy="true"] svg {
+    animation: none;
+  }
+
+  .header-tooltip {
     transition: none;
   }
 }

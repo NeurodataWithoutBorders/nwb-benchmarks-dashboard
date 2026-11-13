@@ -9,6 +9,9 @@ Every BBQS companion app is the same shell around a different job.
 The shell is what this template provides: the page frame in `index.html` (header with the logo and the light/dark toggle, the BBQS and CON marks, the footer with the version stamp, the bug and feature links and the "What's New" modal), the shared stylesheet `src/style.css` imports from `@brain-bbqs/ui` (theme tokens, page defaults, header, footer and controls), the tooling under `configs/` (thin calls into `@brain-bbqs/config`), the workflows under `.github/`, and the conventions in this file.
 An app adds what it does: pure logic under `src/lib/` (one concern per module, each with a unit test), DOM work under `src/ui/`, the wiring in `src/main.ts`, the markup for it in `index.html` (every id it touches registered in `src/ui/elements.ts`), and its own rules in `src/style.css` below the imports.
 
+This app departs from that shell on purpose: it carries no BBQS mark or link, and its footer holds only the version stamp and the CON mark, with no What's New modal or bug and feature links.
+Keep them out when syncing from the template.
+
 Keep the shell recognizably the same as its siblings, [clip-extractor](https://github.com/brain-bbqs/clip-extractor), [encoding-helper](https://github.com/brain-bbqs/encoding-helper) and [bbqs-uploader](https://github.com/brain-bbqs/bbqs-uploader), which this template was abstracted from.
 When in doubt about how something should look or behave, look there first: a control one of them already has is the one to copy, not to redesign.
 
@@ -48,7 +51,7 @@ Name the rule, and give just enough of the failure to show why the rule exists.
 - Always bump the version in `package.json` appropriately when any file under `src/`, `configs/`, `index.html`, or `package.json`/`package-lock.json` itself, is changed (`tests/` and `stories/` do not count).
   Bump once per PR: if the version was already bumped by earlier work on the same PR/branch and it hasn't been merged yet, do not bump it again for follow-up commits on that same PR; keep adding entries under the existing top-most `CHANGELOG.md` heading instead.
 - This project has no formal releases, so there is no `## Upcoming` staging section in `CHANGELOG.md`.
-  Leave a short description of the change or addition directly under the top-most version heading (the same version just bumped in `package.json`; create the heading if it does not yet exist) under the appropriate subsection (`#### 🚀 Enhancement`, `#### 🐛 Bug Fix`, or `#### 🏠 Internal`); create the subsection if it does not yet exist; include the GitHub PR link at the end of each entry in the format `([#N](https://github.com/brain-bbqs/web-app-template/pull/N))`.
+  Leave a short description of the change or addition directly under the top-most version heading (the same version just bumped in `package.json`; create the heading if it does not yet exist) under the appropriate subsection (`#### 🚀 Enhancement`, `#### 🐛 Bug Fix`, or `#### 🏠 Internal`); create the subsection if it does not yet exist; include the GitHub PR link at the end of each entry in the format `([#N](https://github.com/brain-bbqs/nwb-benchmarks-dashboard/pull/N))`.
 - Keep `CHANGELOG.md` entries to a single sentence each, roughly 25 words or fewer: what changed, from the reader's side.
   Not why, not how, not the reasoning behind it, which belong in the code comments and the PR.
   Prefer a single entry per PR, describing the change as a whole at the level someone using the app would notice; follow-up commits on the same PR should usually revise that entry rather than add another.

@@ -16,7 +16,8 @@ grep -rn "innerHTML\|outerHTML\|insertAdjacentHTML" src/
 
 For every hit, confirm any _dynamic_ (user-supplied, API-returned, file-derived, or otherwise non-literal) string is assigned via `.textContent` (or an `element.value` type property) rather than concatenated into the HTML string itself.
 A fixed, hardcoded template assigned via `innerHTML` is fine; the risk is interpolating untrusted data into HTML source, not the property name.
-As shipped, the template's own code under `src/` has no `innerHTML` use: the dropzone's refusal text is built from text nodes and `<br>` elements, and the What's New modal is drawn by `@brain-bbqs/ui`'s `initWhatsNew`, which builds `CHANGELOG.md` into DOM nodes and never parses it as markup.
+This app's code under `src/` has no `innerHTML` use.
+Text from the results bundle that reaches a figure goes through `plotText` (`src/ui/charts/plot.ts`), since Plotly reads `<` in text as the start of one of its own tags.
 Keep it that way: this is the property that makes accepting client-side credential storage a reasonable call for an app of this shape.
 
 Also keep an eye on:
@@ -25,6 +26,9 @@ Also keep an eye on:
   A compromised third-party script is the other realistic way a token in storage gets exfiltrated even without a bug in this app's own code, so keep it that way.
 - **Minimal runtime dependencies.** The template ships with none.
   Every added runtime dependency is something that could be compromised upstream and ship code that reads `localStorage`; don't add one without a reason.
+  This app has one, Plotly (`plotly.js-cartesian-dist-min`, bundled rather than loaded from a CDN), which draws the figures; its button that uploads a chart to Plotly Cloud is turned off (`showSendToCloud: false`), so nothing leaves the browser.
+- **Stored data is public data.** The only thing the app keeps besides the theme is the last public results bundle it downloaded, in Cache Storage (`src/lib/bundleCache.ts`); it holds no credential.
+  A kept copy is read through the same code as a download, so it needs no more trust than the published bundle does.
 
 ## Handling a "clear text storage" alert on a new credential
 

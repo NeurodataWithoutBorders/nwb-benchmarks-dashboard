@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with the Web App Template
+description: Report a problem with the NWB Benchmarks Dashboard
 body:
   - type: textarea
     id: description

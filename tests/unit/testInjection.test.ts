@@ -1,31 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { MOCK_FILE_NAME, readTestInjection, synthesizeMockFile } from "../../src/lib/testInjection";
+import { FROZEN_PROGRESS, INJECTED_LOAD_ERROR, readTestInjection } from "../../src/lib/testInjection";
 
 describe("readTestInjection", () => {
   it("is null without ?test, however many other params are present", () => {
     expect(readTestInjection("")).toBe(null);
-    expect(readTestInjection("?mock_file")).toBe(null);
+    expect(readTestInjection("?mock_data")).toBe(null);
     expect(readTestInjection("?foo=1&bar")).toBe(null);
   });
 
   it("is a no-op plan for a bare ?test", () => {
-    expect(readTestInjection("?test")).toEqual({ mockFile: false });
+    expect(readTestInjection("?test")).toEqual({ mockData: false, freezeLoading: false, loadError: false });
   });
 
-  it("reads the mock_file flag", () => {
-    expect(readTestInjection("?test&mock_file")).toEqual({ mockFile: true });
-    expect(readTestInjection("?mock_file&test")).toEqual({ mockFile: true });
+  it.each([
+    ["?test&mock_data", { mockData: true, freezeLoading: false, loadError: false }],
+    ["?freeze_loading&test", { mockData: false, freezeLoading: true, loadError: false }],
+    ["?test&load_error", { mockData: false, freezeLoading: false, loadError: true }],
+  ])("reads %s", (search, plan) => {
+    expect(readTestInjection(search)).toEqual(plan);
   });
-});
 
-describe("synthesizeMockFile", () => {
-  it("is a fixed, recognizably fake file", () => {
-    const file = synthesizeMockFile();
-    expect(file.name).toBe(MOCK_FILE_NAME);
-    expect(file.name).toContain("test-injection");
-    expect(file.type).toBe("text/plain");
-    expect(file.size).toBe(12_345);
-    // Fixed, so every snapshot of the loaded state comes out alike.
-    expect(synthesizeMockFile().size).toBe(file.size);
+  it("fakes recognizably", () => {
+    expect(FROZEN_PROGRESS.received).toBeLessThan(FROZEN_PROGRESS.total ?? 0);
+    expect(INJECTED_LOAD_ERROR).toContain("test injection");
   });
 });
