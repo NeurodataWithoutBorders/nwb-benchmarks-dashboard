@@ -134,8 +134,18 @@ test.describe("the dashboard", () => {
 
     await page.unroute("https://raw.githubusercontent.com/**/bundle.json.gz");
     await page.route("https://raw.githubusercontent.com/**/bundle.json.gz", (route) => route.abort());
+    // Records whether the loading card is ever on screen, from the first frame of the next page.
+    await page.addInitScript(() => {
+      const watch = (): void => {
+        const card = document.getElementById("load-card");
+        if (card && !card.hidden) document.documentElement.dataset.loadCardShown = "";
+        requestAnimationFrame(watch);
+      };
+      requestAnimationFrame(watch);
+    });
     await page.reload();
     await expect(page.locator("#dashboard")).toBeVisible();
+    await expect(page.locator("html")).not.toHaveAttribute("data-load-card-shown");
     await expect(page.locator("#summary-note")).toContainText(/^Showing the results saved on \d{4}-\d{2}-\d{2}/);
   });
 

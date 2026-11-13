@@ -6,7 +6,7 @@ import { readDatabase, type Bundle, type Database } from "./lib/database";
 import { synthesizeMockBundle } from "./lib/mockBundle";
 import { THEME_KEY } from "./lib/settings";
 import { FROZEN_PROGRESS, INJECTED_LOAD_ERROR, readTestInjection } from "./lib/testInjection";
-import { createDashboard } from "./ui/dashboard";
+import type { Dashboard } from "./ui/dashboard";
 import { getElements, getShell } from "./ui/elements";
 import { createLoader } from "./ui/loader";
 
@@ -90,9 +90,14 @@ async function refresh(): Promise<Database> {
   }
 }
 
-const dashboard = createDashboard(els, window.location, { refresh });
+// The dashboard, and Plotly with it, loads beside the results rather than ahead of this script, so a
+// kept copy is drawn without the loading card ever showing, and a first visit shows it at once.
+const dashboardReady: Promise<Dashboard> = import("./ui/dashboard").then(({ createDashboard }) =>
+  createDashboard(els, window.location, { refresh }),
+);
 
-function show(db: Database): void {
+async function show(db: Database): Promise<void> {
+  const dashboard = await dashboardReady;
   els.loadCard.hidden = true;
   els.dashboard.hidden = false;
   dashboard.show(db);
@@ -106,41 +111,52 @@ async function checkForNewer(kept: StoredBundle): Promise<void> {
     if ((await digestOf(bytes)) === kept.digest) return;
     const bundle = await decodeBundle(bytes);
     await keep(bytes);
-    dashboard.show(readDatabase(bundle));
+    (await dashboardReady).show(readDatabase(bundle));
   } catch {
     const saved = kept.storedAt.slice(0, 10);
-    dashboard.note(`Showing the results saved${saved ? ` on ${saved}` : ""}, as newer ones could not be checked for.`);
+    (await dashboardReady).note(
+      `Showing the results saved${saved ? ` on ${saved}` : ""}, as newer ones could not be checked for.`,
+    );
   }
 }
 
-/** The first load: the copy kept from an earlier visit at once, then a check for newer results; or,
- * without one, a download behind the loading card. A retry supersedes a load still running. */
+/** Shows the loading card, which the page starts without so a kept copy can be drawn without it. */
+function showLoading(): void {
+  els.dashboard.hidden = true;
+  els.loadCard.hidden = false;
+  loader.downloading(null);
+}
+
+/** The first load: the copy kept from an earlier visit, drawn without the loading card, then a check
+ * for newer results; or, without one, a download behind the loading card. A retry supersedes a load
+ * still running. */
 async function load(): Promise<void> {
   current?.abort();
   const controller = new AbortController();
   current = controller;
-  els.dashboard.hidden = true;
-  els.loadCard.hidden = false;
-  loader.downloading(null);
   try {
     if (faked) {
-      show(readDatabase(await fakeBundle()));
+      showLoading();
+      await show(readDatabase(await fakeBundle()));
       return;
     }
     const kept = await readKept();
     if (kept) {
-      show(readDatabase(kept.bundle));
+      await show(readDatabase(kept.bundle));
       void checkForNewer(kept.kept);
       return;
     }
+    showLoading();
     const bundle = await download({
       signal: controller.signal,
       onProgress: (progress) => loader.downloading(progress),
     });
     if (controller.signal.aborted) return;
-    show(readDatabase(bundle));
+    await show(readDatabase(bundle));
   } catch (error) {
     if (controller.signal.aborted) return;
+    els.dashboard.hidden = true;
+    els.loadCard.hidden = false;
     loader.failed(errorMessage(error));
   }
 }

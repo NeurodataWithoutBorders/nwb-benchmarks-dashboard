@@ -12,17 +12,28 @@ import { readParityBundleBytes } from "./helpers/parity";
 const storage = fakeCacheStorage();
 const fetched = publishedBundleFetch();
 const STORED_AT = new Date("2026-11-01T12:00:00Z");
+let loadCardShown = false;
 
 beforeAll(async () => {
   await storeBundle(storage, RESULTS_BUNDLE_URL, readParityBundleBytes(), STORED_AT);
-  await bootMain({ fetch: fetched, beforeImport: () => vi.stubGlobal("caches", storage) });
+  await bootMain({
+    fetch: fetched,
+    beforeImport: () => {
+      vi.stubGlobal("caches", storage);
+      const card = el("load-card");
+      loadCardShown = !card.hidden;
+      new MutationObserver(() => {
+        loadCardShown ||= !card.hidden;
+      }).observe(card, { attributes: true, attributeFilter: ["hidden"] });
+    },
+  });
   await dashboardShown();
   await vi.waitFor(() => expect(fetched.calls.length).toBe(1));
 });
 
 describe("main.ts boot with a kept copy", () => {
-  it("draws the kept copy and only asks the browser to revalidate the published bundle", () => {
-    expect(el("load-card").hidden).toBe(true);
+  it("draws the kept copy without the loading card, and only asks the browser to revalidate", () => {
+    expect(loadCardShown).toBe(false);
     expect(el("summary-totals").textContent).toMatch(/Records\d+/);
     expect(fetched.calls[0].init?.cache).toBe("no-cache");
   });
