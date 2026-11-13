@@ -8,6 +8,7 @@ import {
   drawFigure,
   emptyFigure,
   hoverText,
+  logTickSpacing,
   plotConfig,
   plotText,
   plotlyDash,
@@ -62,6 +63,17 @@ describe("the subplot grid", () => {
     expect(legendHeight(3, 100)).toBe(24 + 3 * 22);
     expect(legendWidth(["HDF5", "Ecephys (file opening)"])).toBe(Math.round(64 + 22 * 7.2));
     expect(legendWidth([])).toBe(64);
+  });
+});
+
+describe("log axis ticks", () => {
+  it.each([
+    [1, 100, 1],
+    [1, 31.7, 1],
+    [1, 30, "D2"],
+    [0, 100, "D2"],
+  ])("spans %s to %s with ticks every %s", (low, high, expected) => {
+    expect(logTickSpacing(low, high)).toBe(expected);
   });
 });
 

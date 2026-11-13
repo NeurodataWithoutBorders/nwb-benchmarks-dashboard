@@ -82,6 +82,12 @@ export function plotText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** A log axis's tick spacing: decades only once it spans enough of them, as Plotly otherwise labels
+ * the 2s and 5s between; the 2s and 5s too when it spans too few for decades alone to read. */
+export function logTickSpacing(low: number, high: number): 1 | "D2" {
+  return low > 0 && Math.log10(high / low) >= 1.5 ? 1 : "D2";
+}
+
 /** Hover text: a bold heading over lines of `label: value`. */
 export function hoverText(heading: string, lines: { label: string; value: string }[]): string {
   return [

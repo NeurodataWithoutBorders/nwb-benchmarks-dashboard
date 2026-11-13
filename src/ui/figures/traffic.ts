@@ -20,6 +20,7 @@ import {
   axis,
   baseLayout,
   hoverText,
+  logTickSpacing,
   panelLabels,
   panelLetter,
   plotlyDash,
@@ -78,12 +79,11 @@ interface LogPanel {
 
 function logAxes(layout: Layout, theme: ChartTheme, panel: LogPanel, metric: string): void {
   const names = axisNames(panel.index);
-  // Decades only, once an axis spans enough of them; Plotly otherwise labels the 2s and 5s between.
   const logRange = (range: [number, number]) => ({
     type: "log",
     range: range.map(Math.log10),
     exponentformat: "SI",
-    dtick: Math.log10(range[1] / range[0]) >= 1.5 ? 1 : "D2",
+    dtick: logTickSpacing(range[0], range[1]),
   });
   layout[names.xaxis] = axis(theme, panel.domain.x, names.y, metricLabel(metric), logRange(panel.x));
   layout[names.yaxis] = axis(theme, panel.domain.y, names.x, "Runtime (s)", logRange(panel.y));

@@ -128,10 +128,10 @@ export function createDashboard(
   fillSelect(
     els.incremental.scale,
     [
-      ["linear", "Linear"],
       ["log", "Logarithmic"],
+      ["linear", "Linear"],
     ],
-    "linear",
+    "log",
   );
 
   const search = initSearch(els.search, (query) => setQuery(query));
@@ -298,7 +298,7 @@ export function createDashboard(
     els.traffic.preload.value = "false";
     els.versions.benchmark.value = "time_remote_file_reading";
     els.versions.axis.value = "environment";
-    els.incremental.scale.value = "linear";
+    els.incremental.scale.value = "log";
     search.setQuery("");
     search.setNotes([MANUSCRIPT_DESCRIPTION, "Type a search to leave them for every record."], true);
     navigate(manuscriptSearch(location.search));

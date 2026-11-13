@@ -84,8 +84,9 @@ describe("main.ts boot", () => {
     select("versions-benchmark", "time_remote_slicing");
     expect(plotCount(el("versions-plot"))).toBe(before + 1);
     select("versions-axis", "pkg-h5py");
-    select("incremental-scale", "log");
     expect((lastPlot(el("incremental-plot"))?.layout.yaxis as { type: string }).type).toBe("log");
+    select("incremental-scale", "linear");
+    expect((lastPlot(el("incremental-plot"))?.layout.yaxis as { type: string }).type).toBe("linear");
   });
 
   it("narrows the results from the search, and says what it could not use", () => {
@@ -190,7 +191,7 @@ describe("main.ts boot", () => {
     vi.mocked(Plotly.react).mockImplementationOnce(() => {
       throw new Error("no room");
     });
-    select("incremental-scale", "linear");
+    select("incremental-scale", "log");
     expect(el("incremental-note").textContent).toBe("This figure could not be drawn: no room");
     expect(Plotly.purge).toHaveBeenCalledWith(el("incremental-plot"));
     error.mockRestore();

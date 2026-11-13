@@ -85,9 +85,11 @@ test.describe("the dashboard", () => {
     await expect(page.locator("#versions-plot")).toContainText("not preloaded");
     await page.keyboard.press("Escape");
     await expect(page.locator("#versions-settings")).toBeHidden();
-    await page.locator("#incremental-settings-btn").click();
-    await page.locator("#incremental-scale").selectOption("log");
     await expect(page.locator("#incremental-plot")).toContainText("log scale");
+    await page.locator("#incremental-settings-btn").click();
+    await expect(page.locator("#incremental-scale option").first()).toHaveText("Logarithmic");
+    await page.locator("#incremental-scale").selectOption("linear");
+    await expect(page.locator("#incremental-plot")).not.toContainText("log scale");
     await page.locator("#incremental-card h2").click();
     await expect(page.locator("#incremental-settings")).toBeHidden();
 

@@ -10,6 +10,7 @@ import {
   axis,
   baseLayout,
   hoverText,
+  logTickSpacing,
   panelLabels,
   panelLetter,
   plotlyDash,
@@ -48,6 +49,8 @@ export function incrementalFigure(
     const names = axisNames(index);
     const domain = grid.domains[index];
     const lastIndex = Math.max(...panel.curves.flatMap((curve) => curve.points.map((point) => point.sliceIndex)));
+    const times = panel.curves.flatMap((curve) => curve.points.flatMap((point) => [point.min, point.max]));
+    const positive = times.filter((time) => time > 0);
     layout[names.xaxis] = axis(
       theme,
       domain.x,
@@ -60,10 +63,9 @@ export function incrementalFigure(
       domain.y,
       names.x,
       log ? "Cumulative time (s, log scale)" : "Cumulative time (s)",
-      {
-        type: log ? "log" : "linear",
-        rangemode: log ? "normal" : "tozero",
-      },
+      log
+        ? { type: "log", exponentformat: "SI", dtick: logTickSpacing(Math.min(...positive), Math.max(...positive)) }
+        : { type: "linear", rangemode: "tozero" },
     );
     annotations.push(...panelLabels(theme, grid, domain, panel.modality, panelLetter(letters, index), padding));
     const at = { xaxis: names.x, yaxis: names.y };

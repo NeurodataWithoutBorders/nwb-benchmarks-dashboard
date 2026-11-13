@@ -184,9 +184,11 @@ describe("incremental", () => {
     expect(legendNames(linear)).toContain("HDF5 download + local");
     expect((linear.layout.xaxis3 as { title: { text: string } }).title.text).toBe("Number of TimeSeries read");
     const log = incrementalFigure(panels, "log", narrow);
-    expect((log.layout.yaxis as { type: string; title: { text: string } }).title.text).toBe(
-      "Cumulative time (s, log scale)",
-    );
+    expect(log.layout.yaxis).toMatchObject({
+      type: "log",
+      dtick: 1,
+      title: { text: "Cumulative time (s, log scale)" },
+    });
     expect(annotationTexts(log)).toContain("<b>a)</b>");
     const rows = incrementalRows(panels);
     expect(INCREMENTAL_COLUMNS.map((column) => column.value(rows[0]))).toHaveLength(INCREMENTAL_COLUMNS.length);
