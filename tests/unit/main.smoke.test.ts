@@ -115,7 +115,9 @@ describe("main.ts boot", () => {
     toggle.click();
     expect(window.location.search).toBe("?manuscript");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect(toggle.title).toContain(MANUSCRIPT_DESCRIPTION);
+    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures: on");
+    expect(el("manuscript-tooltip-text").textContent).toContain(MANUSCRIPT_DESCRIPTION);
+    expect(el("manuscript-tooltip-text").textContent).toContain("Click again, or type a search, to see every record.");
     expect(el<HTMLInputElement>("search-input").value).toBe("");
     expect(el<HTMLInputElement>("search-input").placeholder).toMatch(/^Showing the manuscript's figures/);
     expect(el<HTMLSelectElement>("rankings-scale").value).toBe("paper");
@@ -128,7 +130,12 @@ describe("main.ts boot", () => {
     toggle.click();
     expect(window.location.search).toBe("");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    expect(toggle.title).toBe("Show the manuscript's figures");
+    expect(toggle.getAttribute("aria-label")).toBe("Show the manuscript's figures");
+    expect(toggle.getAttribute("aria-describedby")).toBe("manuscript-tooltip");
+    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures");
+    expect(el("manuscript-tooltip-text").textContent).toMatch(
+      /^Draws each figure as the NWB Benchmarks manuscript does/,
+    );
     expect(annotations("rankings-plot")).not.toContain("<b>a)</b>");
 
     toggle.click();

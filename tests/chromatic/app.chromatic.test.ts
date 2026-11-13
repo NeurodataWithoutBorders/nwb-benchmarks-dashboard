@@ -40,3 +40,10 @@ forEachViewport(test, "Main page - search suggestions", async ({ page }) => {
   await expect(page.locator("#search-suggestions [role=option]").first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+forEachViewport(test, "Main page - manuscript button explained", async ({ page }) => {
+  await page.goto("/?test&mock_data");
+  await page.locator("#manuscript-toggle").hover();
+  await expect(page.locator("#manuscript-tooltip")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});

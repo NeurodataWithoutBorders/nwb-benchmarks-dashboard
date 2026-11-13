@@ -132,6 +132,7 @@ export function createDashboard(
   );
 
   const search = initSearch(els.search, (query) => setQuery(query));
+  describeManuscriptToggle();
 
   /** Draws a card's figure and fills its table, or says why there is nothing to show. */
   function finish<T>(
@@ -242,13 +243,23 @@ export function createDashboard(
     );
   }
 
+  /** The header button's state, and the tooltip that says what it does. */
+  function describeManuscriptToggle(): void {
+    const on = manuscript !== null;
+    els.manuscriptToggle.setAttribute("aria-pressed", String(on));
+    els.manuscriptToggle.setAttribute(
+      "aria-label",
+      on ? "Leave the manuscript's figures for every record" : "Show the manuscript's figures",
+    );
+    els.manuscriptTooltipTitle.textContent = on ? "Manuscript figures: on" : "Manuscript figures";
+    els.manuscriptTooltipText.textContent = on
+      ? `Each figure is drawn as the manuscript draws it, panels lettered. ${MANUSCRIPT_DESCRIPTION} Click again, or type a search, to see every record.`
+      : `Draws each figure as the NWB Benchmarks manuscript does, panels lettered. ${MANUSCRIPT_DESCRIPTION}`;
+  }
+
   function renderAll(): void {
     if (!db || !dataset) return;
-    const inManuscript = manuscript !== null;
-    els.manuscriptToggle.setAttribute("aria-pressed", String(inManuscript));
-    const action = inManuscript ? "Leave the manuscript's figures for every record" : "Show the manuscript's figures";
-    els.manuscriptToggle.setAttribute("aria-label", action);
-    els.manuscriptToggle.title = inManuscript ? `${action}. ${MANUSCRIPT_DESCRIPTION}` : action;
+    describeManuscriptToggle();
     renderSummary(manuscript?.get("timepoints") ?? dataset);
     for (const renderer of renderers) renderFigure(...renderer);
   }

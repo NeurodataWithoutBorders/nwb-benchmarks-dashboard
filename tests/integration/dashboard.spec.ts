@@ -98,10 +98,15 @@ test.describe("the dashboard", () => {
     await serveParityBundle(page);
     await page.goto("/");
     const toggle = page.locator("#manuscript-toggle");
+    const tooltip = page.locator("#manuscript-tooltip");
+    await expect(tooltip).toBeHidden();
+    await toggle.hover();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText("Draws each figure as the NWB Benchmarks manuscript does");
     await toggle.click();
     await expect(page).toHaveURL(/\?manuscript$/);
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await expect(toggle).toHaveAttribute("title", /The manuscript's selections/);
+    await expect(tooltip).toContainText("Click again, or type a search, to see every record.");
     await expect(page.locator("#search-input")).toHaveAttribute("placeholder", /^Showing the manuscript's figures/);
     await expect(page.locator("#rankings-plot")).toContainText("a)");
     await expect(page.locator("#versions-plot")).toContainText("2024-06-30");

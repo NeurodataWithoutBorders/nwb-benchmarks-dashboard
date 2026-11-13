@@ -16,7 +16,8 @@ describe("main.ts boot at ?manuscript", () => {
     expect(window.location.search).toBe("?manuscript");
     expect(el("manuscript-toggle").getAttribute("aria-pressed")).toBe("true");
     expect(el<HTMLInputElement>("search-input").value).toBe("");
-    expect(el("manuscript-toggle").title).toContain(MANUSCRIPT_DESCRIPTION);
+    expect(el("manuscript-tooltip-text").textContent).toContain(MANUSCRIPT_DESCRIPTION);
+    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures: on");
   });
 
   it("draws the single-environment figures from the reference environment, lettering the panels", () => {
@@ -33,6 +34,6 @@ describe("main.ts boot at ?manuscript", () => {
   it("goes back to every result from the toggle", () => {
     el("manuscript-toggle").click();
     expect(window.location.search).toBe("");
-    expect(el("manuscript-toggle").title).not.toContain(MANUSCRIPT_DESCRIPTION);
+    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures");
   });
 });

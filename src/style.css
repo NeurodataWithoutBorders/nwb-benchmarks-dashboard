@@ -140,13 +140,54 @@
   padding: 0.15rem 0.3rem;
 }
 
+/* The tooltip below is placed against the whole group, so it lines up with the page's right edge. */
 .header-actions {
+  position: relative;
   gap: 0.5rem;
 }
 
 /* Wide enough for the subtitle on one line under the title, beside the taller logo. */
 .site-title {
   max-width: 40rem;
+}
+
+/* The manuscript toggle, and the tooltip that says what it does, shown on hover or keyboard focus. */
+.header-control {
+  display: flex;
+}
+
+.header-tooltip {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.6rem 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--popup-shadow);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: left;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  pointer-events: none;
+}
+
+.header-tooltip strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--text);
+}
+
+.header-control:hover .header-tooltip,
+.manuscript-toggle:focus-visible + .header-tooltip {
+  visibility: visible;
+  opacity: 1;
 }
 
 /* The manuscript toggle borrows the theme toggle's outlined circle, and fills it while it is on. */
@@ -568,5 +609,9 @@
 @media (prefers-reduced-motion: reduce) {
   .icon-button[aria-busy="true"] svg {
     animation: none;
+  }
+
+  .header-tooltip {
+    transition: none;
   }
 }
