@@ -17,7 +17,7 @@ test.describe("the dashboard", () => {
     await expect(page.locator("#dashboard")).toBeVisible();
     await expect(page.locator("#load-card")).toBeHidden();
     await expect(page.locator("#summary-totals th")).toHaveText([
-      "Results files",
+      "Records",
       "Machines",
       "Environments",
       "Benchmarks",
@@ -101,7 +101,8 @@ test.describe("the dashboard", () => {
     await toggle.click();
     await expect(page).toHaveURL(/\?manuscript$/);
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("#search-status")).toContainText("The manuscript's selections");
+    await expect(toggle).toHaveAttribute("title", /The manuscript's selections/);
+    await expect(page.locator("#search-input")).toHaveAttribute("placeholder", /^Showing the manuscript's figures/);
     await expect(page.locator("#rankings-plot")).toContainText("a)");
     await expect(page.locator("#versions-plot")).toContainText("2024-06-30");
 

@@ -3,6 +3,7 @@ import {
   environmentLabel,
   latestRunDate,
   machineLabel,
+  modalityOfObject,
   normalizeResults,
   readDatabase,
   readEnvironment,
@@ -117,7 +118,7 @@ describe("normalizeResults", () => {
 describe("readDatabase", () => {
   const db = readDatabase(readParityBundle());
 
-  it("reads every kind of file, leaving out results older than format 3.0.0", () => {
+  it("reads every kind of file", () => {
     expect(db.machines.size).toBe(4);
     expect(db.environments.size).toBe(5);
     expect(db.runs.length).toBeGreaterThan(20);
@@ -125,14 +126,59 @@ describe("readDatabase", () => {
     expect(db.runs.map((run) => run.timestamp)).toEqual([...db.runs.map((run) => run.timestamp)].sort());
   });
 
-  it("counts the files it could not read", () => {
+  it("counts the files it could not read: those with no date at all", () => {
     const counted = readDatabase({
       "results/old.json": { database_version: "2.0.0" },
       "results/broken.json": { database_version: "4.0.0" },
       "other/readme.json": {},
     });
-    expect(counted.skipped).toEqual({ outdated: 1, unreadable: 1 });
+    expect(counted.skipped).toEqual({ unreadable: 2 });
     expect(counted.runs).toEqual([]);
+  });
+
+  it("reads results in every older format, filling what they leave out from the file's name", () => {
+    const url = "https://dandiarchive.s3.amazonaws.com/blobs/abc";
+    const older = readDatabase({
+      // Format 4: a named case, which teaches the modality of its file.
+      "results/new.json": {
+        database_version: "4.0.0",
+        timestamp: "2026-01-01-00-00-00",
+        machine_id: "m-new",
+        environment_id: "e-new",
+        results: {
+          "time_remote_file_reading.X.time_read": { [`{'name': 'OphysTestCase1', 'https_url': '${url}'}`]: [1] },
+        },
+      },
+      // No format version; the machine and environment named by hash.
+      "results/timestamp-2024-02-17-00-59-37_machine-m-old_environment-e-old_results.json": {
+        timestamp: "2024-02-17-00-59-37",
+        machine_hash: "m-old",
+        environment_hash: "e-old",
+        results: {
+          "time_remote_slicing.FsspecNoCacheContinuousSliceBenchmark.time_slice": {
+            [`("'${url}'", "'TwoPhotonSeries'", '(slice(0, 30000, None),)')`]: [2],
+            [`("'https://elsewhere'", "'ElectricalSeriesAp'", '(slice(0, 30000, None),)')`]: [3],
+            [`("'https://nowhere'", "'Thing'")`]: [4],
+          },
+        },
+      },
+      // Format 2: no machine at all, and the date only in the file's name.
+      "results/timestamp-2025-08-29-17-09-32_environment-e-2_results.json": {
+        database_version: "2.0.0",
+        results: { "time_remote_file_reading.Y.time_read": { "(\"'https://x'\",)": [5] } },
+      },
+    });
+    expect(older.skipped).toEqual({ unreadable: 0 });
+    expect(older.runs.map((run) => [run.machineId, run.environmentId, run.databaseVersion])).toEqual([
+      ["m-old", "e-old", "unknown"],
+      ["unknown", "e-2", "2.0.0"],
+      ["m-new", "e-new", "4.0.0"],
+    ]);
+    const modalities = older.samples.map((sample) => sample.modality);
+    expect(modalities).toEqual(["Ophys", "Ophys", "Ecephys", null, null]);
+    expect(older.samples[1].scalingValue).toBe(30000);
+    expect(modalityOfObject("CurrentClampSeries")).toBe("Icephys");
+    expect(modalityOfObject("Thing")).toBeNull();
   });
 
   it("names machines, environments and the latest run readably", () => {

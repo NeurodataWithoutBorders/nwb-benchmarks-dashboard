@@ -157,9 +157,30 @@ export function parsePyLiteral(text: string): PyValue {
  * Reads a parameter case key the way nwb-benchmarks' `Results.parse_parameter_case` does: a dict
  * as is, and the bare tuple older results used as `{https_url: <first item>}`.
  */
+/** What results files before format 3.0.0 recorded a case's parameters as, by position. */
+const POSITIONAL_PARAMETERS = ["https_url", "object_name", "slice_range"];
+
+/** Each positional parameter, itself written as a Python literal ("'ElectricalSeries'"). */
+function positionalCase(values: PyValue[]): PyDict {
+  const parameters: PyDict = {};
+  values.slice(0, POSITIONAL_PARAMETERS.length).forEach((value, position) => {
+    let parsed: PyValue = value;
+    if (typeof value === "string") {
+      try {
+        parsed = parsePyLiteral(value);
+      } catch {
+        parsed = value.replace(/^'+|'+$/g, "");
+      }
+    }
+    parameters[POSITIONAL_PARAMETERS[position]] = parsed;
+  });
+  return parameters;
+}
+
 export function parseParameterCase(text: string): PyDict {
   const value = parsePyLiteral(text);
   if (isPyDict(value)) return value;
-  const first = Array.isArray(value) ? value[0] : typeof value === "string" ? value[0] : null;
+  if (Array.isArray(value)) return positionalCase(value);
+  const first = typeof value === "string" ? value[0] : null;
   return { https_url: typeof first === "string" ? first.replace(/^'+|'+$/g, "") : null };
 }

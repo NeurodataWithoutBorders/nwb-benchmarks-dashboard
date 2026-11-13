@@ -77,7 +77,7 @@ describe("dates", () => {
 });
 
 describe("the search index", () => {
-  it("lists every facet's values with how many results files have them, most common first", () => {
+  it("lists every facet's values with how many records have them, most common first", () => {
     const environments = index.get("environment") ?? [];
     expect(environments.map((value) => value.count).reduce((sum, count) => sum + count, 0)).toBe(db.runs.length);
     expect(environments[0].count).toBeGreaterThanOrEqual(environments[environments.length - 1].count);

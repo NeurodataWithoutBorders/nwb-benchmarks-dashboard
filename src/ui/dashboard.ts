@@ -42,7 +42,7 @@ import { downloadCsv, fillTable } from "./table";
 export const SOURCE_DATA_URL = `https://github.com/${RESULTS_REPOSITORY}`;
 
 const TOTALS: [keyof Totals, string][] = [
-  ["runs", "Results files"],
+  ["runs", "Records"],
   ["machines", "Machines"],
   ["environments", "Environments"],
   ["benchmarks", "Benchmarks"],
@@ -244,7 +244,11 @@ export function createDashboard(
 
   function renderAll(): void {
     if (!db || !dataset) return;
-    els.manuscriptToggle.setAttribute("aria-pressed", String(manuscript !== null));
+    const inManuscript = manuscript !== null;
+    els.manuscriptToggle.setAttribute("aria-pressed", String(inManuscript));
+    const action = inManuscript ? "Leave the manuscript's figures for every record" : "Show the manuscript's figures";
+    els.manuscriptToggle.setAttribute("aria-label", action);
+    els.manuscriptToggle.title = inManuscript ? `${action}. ${MANUSCRIPT_DESCRIPTION}` : action;
     renderSummary(manuscript?.get("timepoints") ?? dataset);
     for (const renderer of renderers) renderFigure(...renderer);
   }
@@ -260,11 +264,7 @@ export function createDashboard(
     manuscript = null;
     const compiled = compileQuery(query, index);
     dataset = applyFilters(db, compiled.state);
-    const total = db.runs.length.toLocaleString("en-US");
-    const shown = compiled.narrowed
-      ? `Showing ${dataset.runs.length.toLocaleString("en-US")} of ${total} results files.`
-      : `Showing all ${total} results files. Type to narrow them, as in date:>=2025-11 or pynwb:3.`;
-    search.setStatus([shown, ...compiled.problems].join(" "));
+    search.setNotes(compiled.problems, false);
     navigate(querySearch(query, location.search));
   }
 
@@ -286,7 +286,7 @@ export function createDashboard(
     els.versions.axis.value = "environment";
     els.incremental.scale.value = "linear";
     search.setQuery("");
-    search.setStatus(MANUSCRIPT_DESCRIPTION);
+    search.setNotes([MANUSCRIPT_DESCRIPTION, "Type a search to leave them for every record."], true);
     navigate(manuscriptSearch(location.search));
   }
 
@@ -361,12 +361,6 @@ export function createDashboard(
     search.setIndex(index);
     const latest = latestRunDate(loaded.runs);
     els.summary.updated.textContent = latest ? `Last updated ${latest}` : "";
-    if (loaded.skipped.outdated) {
-      setNote(
-        els.summary.note,
-        `${loaded.skipped.outdated.toLocaleString("en-US")} results files in formats older than the figures read are left out.`,
-      );
-    }
     if (isManuscriptSearch(location.search)) showManuscript();
     else {
       const query = queryFromSearch(location.search);

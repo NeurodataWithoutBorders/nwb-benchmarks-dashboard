@@ -62,9 +62,9 @@ export const PACKAGES_OF_INTEREST = [
   "pynwb",
 ];
 
-/** `create_database`'s defaults: older results and machine files have other structures. */
-export const MINIMUM_RESULTS_VERSION = "3.0.0";
-export const MINIMUM_MACHINES_VERSION = "1.4.0";
+/** The first results format the paper's figures read (`create_database`'s default minimum). The
+ * dashboard reads older files too; their slice sizes are ranked apart from the current suite's. */
+export const CURRENT_RESULTS_FORMAT = "3.0.0";
 
 export interface ExcludedSample {
   machineId: string;

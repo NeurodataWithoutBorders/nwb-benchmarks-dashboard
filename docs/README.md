@@ -25,8 +25,16 @@ The search box takes free text and `key:value` filters, after the record search 
 The keys are the run metadata (`machine:`, `os:`, `cpu:`, `environment:`, `python:`, one per package of interest such as `pynwb:`, `commit:` and `format:`), plus `date:` (`date:2025-11`, or a range such as `date:>=2025-11-01`) and `exclusions:off`, which keeps the curated outlier samples.
 A value matches a facet's label anywhere in it, or the start of its ID, and values with spaces are quoted.
 Different keys must all match, and repeating a key allows any of its values.
-Free text has to appear in one of a run's values.
+Free text has to appear in one of a record's values.
+The suggestions explain what the search could not use, with examples drawn from the data.
 The language is `src/lib/search.ts`; the search is kept in the URL as `?q=`.
+
+## Older results formats
+
+The dashboard reads every record in the bundle, including those written before format 3.0.0, which `generate_figures` leaves out.
+Those name the machine and environment by hash (or not at all, leaving them to the file's name), and record each test case as a tuple of positional parameters (URL, NWB object, slice range) with no case name.
+Their modality comes from a named case on the same file elsewhere in the bundle, or else from the NWB object's type, and their slice sizes are ranked apart from the current suite's so they do not renumber its slices.
+Their benchmarks carry the method names of their day, so they appear in the figures that plot every method present (the slicing traffic panels) and in every table, but not in the rankings or the comparison across versions, which plot the current suite's methods as `generate_figures` does.
 
 ## The manuscript view
 

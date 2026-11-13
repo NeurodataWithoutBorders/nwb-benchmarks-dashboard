@@ -19,7 +19,7 @@ describe("main.ts boot with ?test&mock_data", () => {
   });
 
   it("starts from all results, outside the manuscript view", () => {
-    expect(el("search-status").textContent).toMatch(/^Showing all \d+ results files\./);
+    expect(el<HTMLInputElement>("search-input").placeholder).toMatch(/^Search every record/);
     expect(el("manuscript-toggle").getAttribute("aria-pressed")).toBe("false");
     expect(window.location.search).toBe("?test&mock_data");
   });

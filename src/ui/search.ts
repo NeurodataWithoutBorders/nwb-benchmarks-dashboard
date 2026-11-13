@@ -23,12 +23,18 @@ export interface SearchView {
   setIndex: (index: SearchIndex) => void;
   /** Shows a search without reporting it as typed: on load, or when the manuscript view clears it. */
   setQuery: (query: string) => void;
-  setStatus: (text: string) => void;
+  /** What the dropdown says above its suggestions: the parts of a search it could not use, or what
+   * the manuscript view shows (`manuscript`, which also says so in the empty box). */
+  setNotes: (notes: string[], manuscript: boolean) => void;
 }
 
+const PLACEHOLDER = "Search every record: machine:, environment:, date:, a package's version, or any text";
+const MANUSCRIPT_PLACEHOLDER = "Showing the manuscript's figures. Type a search to see every record instead";
+
 export function initSearch(els: SearchElements, onQuery: (query: string) => void): SearchView {
-  const { form, input, list, status } = els;
+  const { form, input, list } = els;
   let index: SearchIndex = new Map();
+  let notes: string[] = [];
   let suggestions: Suggestion[] = [];
   let active = -1;
   let timer: number | undefined;
@@ -91,43 +97,46 @@ export function initSearch(els: SearchElements, onQuery: (query: string) => void
     return item;
   }
 
+  /** Examples drawn from the data itself, so each one finds something. */
+  function examples(): string[] {
+    const first = (key: string, prefix = ""): string[] => {
+      const value = index.get(key)?.[0];
+      return value ? [formatTerm(key, `${prefix}${value.label}`)] : [];
+    };
+    return [...first("machine"), ...first("environment"), ...first("date", ">="), ...first("pynwb"), "exclusions:off"];
+  }
+
   function tip(): string {
-    const example = [...index.entries()]
-      .flatMap(([key, values]) => values.map((value) => formatTerm(key, value.label)))
-      .find((term) => term.includes('"'));
     return (
-      "Different keys must all match; repeat a key to allow any of its values. " +
-      `Quote values with spaces${example ? `, as in ${example}` : ""}.`
+      `Try ${examples().join(" or ")}. ` +
+      "Different keys must all match, a repeated key allows any of its values, and values with spaces are quoted."
     );
+  }
+
+  function presentation(className: string, text: string): HTMLLIElement {
+    const item = h("li", className, text);
+    item.setAttribute("role", "presentation");
+    return item;
   }
 
   function openSuggestions(): void {
     const term = termAtCaret(input.value, input.selectionStart ?? input.value.length);
     const groups = suggestionGroups(term, index);
     suggestions = groups.flatMap((group) => group.suggestions);
-    if (suggestions.length === 0) {
-      closeSuggestions();
-      return;
-    }
-    const rows: HTMLLIElement[] = [];
+    const rows: HTMLLIElement[] = notes.map((note) => presentation("search-note", note));
     let position = 0;
     for (const group of groups) {
-      const label = h("li", "search-group-label", group.label);
-      label.setAttribute("role", "presentation");
-      rows.push(label);
+      rows.push(presentation("search-group-label", group.label));
       for (const suggestion of group.suggestions) rows.push(option(suggestion, position++));
     }
-    if (term.key === null && !term.value) {
-      const hint = h("li", "search-tip", tip());
-      hint.setAttribute("role", "presentation");
-      rows.push(hint);
-    }
+    rows.push(presentation("search-tip", tip()));
     list.replaceChildren(...rows);
     list.hidden = false;
     input.setAttribute("aria-expanded", "true");
     highlight(-1);
   }
 
+  input.placeholder = PLACEHOLDER;
   input.addEventListener("input", () => {
     reportSoon();
     openSuggestions();
@@ -150,6 +159,7 @@ export function initSearch(els: SearchElements, onQuery: (query: string) => void
         return;
       }
       const count = suggestions.length;
+      if (count === 0) return;
       highlight(event.key === "ArrowDown" ? (active + 1) % count : active <= 0 ? count - 1 : active - 1);
     } else if (event.key === "Enter" && open && active >= 0) {
       event.preventDefault();
@@ -181,8 +191,10 @@ export function initSearch(els: SearchElements, onQuery: (query: string) => void
       window.clearTimeout(timer);
       input.value = query;
     },
-    setStatus(text) {
-      status.textContent = text;
+    setNotes(next, manuscript) {
+      notes = next;
+      input.placeholder = manuscript ? MANUSCRIPT_PLACEHOLDER : PLACEHOLDER;
+      if (!list.hidden) openSuggestions();
     },
   };
 }

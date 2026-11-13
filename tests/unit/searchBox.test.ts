@@ -12,7 +12,6 @@ const index = buildSearchIndex(readDatabase(readParityBundle()));
 let form: HTMLFormElement;
 let input: HTMLInputElement;
 let list: HTMLUListElement;
-let status: HTMLParagraphElement;
 let onQuery: ReturnType<typeof vi.fn<(query: string) => void>>;
 let view: SearchView;
 
@@ -23,12 +22,11 @@ beforeEach(() => {
   list = document.createElement("ul");
   list.id = "suggestions";
   list.hidden = true;
-  status = document.createElement("p");
   form.append(input, list);
-  document.body.replaceChildren(form, status);
+  document.body.replaceChildren(form);
   Element.prototype.scrollIntoView = vi.fn();
   onQuery = vi.fn<(query: string) => void>();
-  view = initSearch({ form, input, list, status }, onQuery);
+  view = initSearch({ form, input, list }, onQuery);
   view.setIndex(index);
 });
 
@@ -53,13 +51,30 @@ function options(): string[] {
 }
 
 describe("the search box", () => {
-  it("lists the filters and a tip when focused while empty", () => {
+  it("lists the filters and a tip with examples from the data when focused", () => {
+    expect(input.placeholder).toMatch(/^Search every record/);
     input.dispatchEvent(new Event("focus"));
     expect(list.hidden).toBe(false);
     expect(input.getAttribute("aria-expanded")).toBe("true");
     expect(list.querySelector(".search-group-label")?.textContent).toBe("Filters");
     expect(options()[0]).toBe("machine:Machine");
-    expect(list.querySelector(".search-tip")?.textContent).toContain("repeat a key to allow any of its values");
+    const tip = list.querySelector(".search-tip")?.textContent ?? "";
+    expect(tip).toContain("environment:");
+    expect(tip).toContain("exclusions:off");
+    expect(tip).toContain("a repeated key allows any of its values");
+  });
+
+  it("keeps the tip, and any notes, open where there is nothing to suggest", () => {
+    view.setNotes(['No machine matches "nobody".'], false);
+    type("zzzzzzzz:x");
+    expect(list.hidden).toBe(false);
+    expect(options()).toEqual([]);
+    expect(list.querySelector(".search-note")?.textContent).toBe('No machine matches "nobody".');
+    expect(key("ArrowDown").defaultPrevented).toBe(true);
+    expect(list.querySelector("[aria-selected=true]")).toBeNull();
+    view.setNotes(["The manuscript's selections."], true);
+    expect(input.placeholder).toMatch(/^Showing the manuscript's figures/);
+    expect(list.querySelector(".search-note")?.textContent).toBe("The manuscript's selections.");
   });
 
   it("hands the search on once typing pauses", () => {
@@ -100,8 +115,6 @@ describe("the search box", () => {
   });
 
   it("opens with the arrow keys, follows the caret, and closes or clears with Escape", () => {
-    type("zzzzzzzz:x");
-    expect(list.hidden).toBe(true);
     input.value = "os:";
     key("ArrowDown");
     expect(list.hidden).toBe(false);
@@ -130,7 +143,5 @@ describe("the search box", () => {
     vi.advanceTimersByTime(QUERY_DELAY_MS);
     expect(onQuery).not.toHaveBeenCalled();
     expect(input.value).toBe("from the URL");
-    view.setStatus("Showing 1 of 2 results files.");
-    expect(status.textContent).toBe("Showing 1 of 2 results files.");
   });
 });

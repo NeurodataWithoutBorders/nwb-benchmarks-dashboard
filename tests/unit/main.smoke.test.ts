@@ -59,11 +59,11 @@ describe("main.ts boot", () => {
     expect(fetched.calls[0].init?.cache).toBeUndefined();
   });
 
-  it("totals every result, with the date of the latest", () => {
-    expect(Object.keys(totals())).toEqual(["Results files", "Machines", "Environments", "Benchmarks", "Test cases"]);
-    expect(Number(totals()["Results files"])).toBeGreaterThan(10);
+  it("totals every record, with the date of the latest", () => {
+    expect(Object.keys(totals())).toEqual(["Records", "Machines", "Environments", "Benchmarks", "Test cases"]);
+    expect(Number(totals().Records)).toBeGreaterThan(10);
     expect(el("summary-updated").textContent).toMatch(/^Last updated \d{4}-\d{2}-\d{2}$/);
-    expect(el("search-status").textContent).toMatch(/^Showing all \d+ results files\./);
+    expect(el("summary-note").hidden).toBe(true);
     expect(window.location.search).toBe("");
   });
 
@@ -91,8 +91,9 @@ describe("main.ts boot", () => {
   it("narrows the results from the search, and says what it could not use", () => {
     search("environment:2026-10-07 machin:");
     expect(window.location.search).toBe("?q=environment%3A2026-10-07+machin%3A");
-    expect(el("search-status").textContent).toMatch(
-      /^Showing \d+ of \d+ results files\. There is no machin: filter\. Did you mean machine:\?$/,
+    el("search-input").dispatchEvent(new Event("focus"));
+    expect(document.querySelector(".search-note")?.textContent).toBe(
+      "There is no machin: filter. Did you mean machine:?",
     );
     expect(totals().Environments).toBe("1");
     // One environment is nothing to compare across.
@@ -114,8 +115,9 @@ describe("main.ts boot", () => {
     toggle.click();
     expect(window.location.search).toBe("?manuscript");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect(el("search-status").textContent).toBe(MANUSCRIPT_DESCRIPTION);
+    expect(toggle.title).toContain(MANUSCRIPT_DESCRIPTION);
     expect(el<HTMLInputElement>("search-input").value).toBe("");
+    expect(el<HTMLInputElement>("search-input").placeholder).toMatch(/^Showing the manuscript's figures/);
     expect(el<HTMLSelectElement>("rankings-scale").value).toBe("paper");
     expect(el<HTMLSelectElement>("traffic-metric").value).toBe("total_transfer_in_bytes");
     expect(el<HTMLSelectElement>("versions-axis").value).toBe("environment");
@@ -126,6 +128,7 @@ describe("main.ts boot", () => {
     toggle.click();
     expect(window.location.search).toBe("");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(toggle.title).toBe("Show the manuscript's figures");
     expect(annotations("rankings-plot")).not.toContain("<b>a)</b>");
 
     toggle.click();

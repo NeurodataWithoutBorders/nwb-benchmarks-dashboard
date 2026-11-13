@@ -107,9 +107,13 @@
         <button type="button" id="retry-load-btn" class="primary" hidden>Try again</button>
       </section>
       <div id="dashboard" hidden>
-        <section class="card summary-card" aria-labelledby="summary-title">
-          <div class="card-heading">
-            <h2 id="summary-title">Summary</h2>
+        <section class="summary" aria-label="Totals of the selected records">
+          <table id="summary-totals" class="totals-table">
+            <tbody></tbody>
+          </table>
+          <div class="summary-footer">
+            <p id="summary-note" class="summary-note" role="status" hidden></p>
+            <p id="summary-updated" class="summary-updated"></p>
             <button
               type="button"
               id="refresh-btn"
@@ -119,8 +123,8 @@
             >
               <svg
                 viewBox="0 0 24 24"
-                width="18"
-                height="18"
+                width="16"
+                height="16"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
@@ -134,56 +138,39 @@
               </svg>
             </button>
           </div>
-          <table id="summary-totals" class="totals-table" aria-label="Totals of the selected results">
-            <tbody></tbody>
-          </table>
-          <div class="summary-footer">
-            <p id="summary-note" class="summary-note" hidden></p>
-            <p id="summary-updated" class="summary-updated"></p>
+        </section>
+        <form id="search-form" class="search" role="search">
+          <div class="search-field">
+            <svg
+              class="search-icon"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="search"
+              id="search-input"
+              name="q"
+              aria-label="Search the records"
+              autocomplete="off"
+              spellcheck="false"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="search-suggestions"
+            />
+            <ul id="search-suggestions" class="search-suggestions" role="listbox" aria-label="Suggestions" hidden></ul>
           </div>
-        </section>
-        <section class="card search-card" aria-label="Filter the results">
-          <form id="search-form" class="search" role="search">
-            <div class="search-field">
-              <svg
-                class="search-icon"
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="search"
-                id="search-input"
-                name="q"
-                placeholder="Filter by machine:, environment:, date:, a package's version, or any text"
-                aria-label="Filter the results"
-                autocomplete="off"
-                spellcheck="false"
-                role="combobox"
-                aria-autocomplete="list"
-                aria-expanded="false"
-                aria-controls="search-suggestions"
-              />
-              <ul
-                id="search-suggestions"
-                class="search-suggestions"
-                role="listbox"
-                aria-label="Suggestions"
-                hidden
-              ></ul>
-            </div>
-          </form>
-          <p id="search-status" class="search-status" role="status"></p>
-        </section>
+        </form>
         <section class="card figure-card" id="rankings-card" aria-labelledby="rankings-title">
           <div class="card-heading">
             <h2 id="rankings-title">Which method is fastest?</h2>

@@ -4,14 +4,9 @@
 // lives in filters.ts so that it can change without reading the bundle again.
 
 import { benchmarkNameParts, modalityOf, scalingValueOf, type Modality } from "./benchmarkNames";
-import {
-  MINIMUM_RESULTS_VERSION,
-  PACKAGES_OF_INTEREST,
-  TIMEPOINT_BY_ENVIRONMENT,
-  canonicalEnvironmentId,
-} from "./curation";
+import { PACKAGES_OF_INTEREST, TIMEPOINT_BY_ENVIRONMENT, canonicalEnvironmentId } from "./curation";
 import { parseParameterCase, type PyDict } from "./pyLiteral";
-import { isAtLeast, numericVersion } from "./versions";
+import { numericVersion } from "./versions";
 
 /** One JSON file per key, as nwb-benchmarks-results' `dist` branch publishes them. */
 export type Bundle = Record<string, unknown>;
@@ -76,8 +71,8 @@ export interface Database {
   environments: Map<string, Environment>;
   runs: Run[];
   samples: Sample[];
-  /** Results files left out, by why. */
-  skipped: { outdated: number; unreadable: number };
+  /** Results files that could not be read at all. */
+  skipped: { unreadable: number };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -193,22 +188,30 @@ export function normalizeResults(results: unknown): [string, number[]][] {
   return variables;
 }
 
-function readRun(key: string, data: unknown): { run: Run; results: Record<string, unknown> } | "outdated" | null {
+/** What a results file's name says of it: `timestamp-<t>_machine-<id>_environment-<id>_results.json`. */
+function fromKey(key: string, field: "timestamp" | "machine" | "environment"): string | null {
+  return new RegExp(`${field}-([^_/]+)`).exec(key)?.[1] ?? null;
+}
+
+const UNKNOWN_ID = "unknown";
+
+/** A results file of any format: the current one, or the older ones (before 3.0.0) that name the machine
+ * and environment by hash, and leave out the format version or the IDs altogether. */
+function readRun(key: string, data: unknown): { run: Run; results: Record<string, unknown> } | null {
   const record = asRecord(data);
-  const databaseVersion = asString(record.database_version);
-  if (!isAtLeast(databaseVersion, MINIMUM_RESULTS_VERSION)) return "outdated";
-  const timestamp = asString(record.timestamp);
-  const environmentId = asString(record.environment_id);
-  const machineId = asString(record.machine_id);
-  if (timestamp === null || environmentId === null || machineId === null || databaseVersion === null) return null;
+  const timestamp = asString(record.timestamp) ?? fromKey(key, "timestamp");
+  if (timestamp === null) return null;
+  const machineId = asString(record.machine_id) ?? asString(record.machine_hash) ?? fromKey(key, "machine");
+  const environmentId =
+    asString(record.environment_id) ?? asString(record.environment_hash) ?? fromKey(key, "environment");
   return {
     run: {
       key,
       timestamp,
       commitHash: asString(record.commit_hash) ?? "",
-      environmentId: canonicalEnvironmentId(environmentId),
-      machineId,
-      databaseVersion,
+      environmentId: canonicalEnvironmentId(environmentId ?? UNKNOWN_ID),
+      machineId: machineId ?? UNKNOWN_ID,
+      databaseVersion: asString(record.database_version) ?? UNKNOWN_ID,
     },
     results: asRecord(record.results),
   };
@@ -241,13 +244,37 @@ function readSamples(run: Run, results: Record<string, unknown>, caseCache: Map<
   return samples;
 }
 
-/** Reads every machine, environment and results file of a bundle. */
+/** The modality an NWB object's type belongs to, for cases recorded without a case name. */
+export function modalityOfObject(objectName: string): Modality | null {
+  if (/ElectricalSeries|LFP|Units|Spike/i.test(objectName)) return "Ecephys";
+  if (/Photon|Imaging|Plane|Roi|Fluorescence|Segmentation/i.test(objectName)) return "Ophys";
+  if (/Clamp|Icephys|Intracellular|CurrentClamp|VoltageClamp/i.test(objectName)) return "Icephys";
+  return null;
+}
+
+/** Cases written before format 3.0.0 have no name to read a modality from: they take the modality of a
+ * named case on the same file, or failing that the one their NWB object's type suggests. */
+function inferModalities(samples: Sample[]): void {
+  const byUrl = new Map<string, Modality>();
+  for (const sample of samples) {
+    const url = asString(sample.parameterCase.https_url);
+    if (sample.modality !== null && url !== null) byUrl.set(url, sample.modality);
+  }
+  for (const sample of samples) {
+    if (sample.modality !== null || "name" in sample.parameterCase) continue;
+    const url = asString(sample.parameterCase.https_url);
+    const objectName = asString(sample.parameterCase.object_name);
+    sample.modality = (url !== null ? byUrl.get(url) : undefined) ?? (objectName ? modalityOfObject(objectName) : null);
+  }
+}
+
+/** Reads every machine, environment and results file of a bundle, whatever format it was written in. */
 export function readDatabase(bundle: Bundle): Database {
   const machines = new Map<string, Machine>();
   const environments = new Map<string, Environment>();
   const runs: Run[] = [];
   const samples: Sample[] = [];
-  const skipped = { outdated: 0, unreadable: 0 };
+  const skipped = { unreadable: 0 };
   const caseCache = new Map<string, PyDict>();
 
   for (const [key, data] of Object.entries(bundle)) {
@@ -259,13 +286,15 @@ export function readDatabase(bundle: Bundle): Database {
       if (environment) environments.set(environment.id, environment);
     } else if (key.startsWith("results/")) {
       const read = readRun(key, data);
-      if (read === "outdated") skipped.outdated++;
-      if (read === null) skipped.unreadable++;
-      if (read === null || read === "outdated") continue;
+      if (read === null) {
+        skipped.unreadable++;
+        continue;
+      }
       runs.push(read.run);
       samples.push(...readSamples(read.run, read.results, caseCache));
     }
   }
+  inferModalities(samples);
   runs.sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.key.localeCompare(b.key));
   return { machines, environments, runs, samples, skipped };
 }

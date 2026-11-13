@@ -55,6 +55,11 @@
 
   /* Behind the header logo: none in light, a light plate in dark so its navy lettering stays legible. */
   --logo-plate: transparent;
+
+  /* The search's pill and its dropdown, after CodyCBakerPhD/website's. */
+  --search-shadow: 0 1px 3px rgb(16 42 67 / 0.06), 0 1px 2px rgb(16 42 67 / 0.04);
+  --search-ring: rgb(79 70 229 / 0.2);
+  --popup-shadow: 0 8px 24px rgb(16 42 67 / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -87,6 +92,9 @@
     --chart-frame: #3a4156;
     --chart-guide: #5d6580;
     --logo-plate: #e8eaf2;
+    --search-shadow: 0 1px 3px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.35);
+    --search-ring: rgb(129 140 248 / 0.28);
+    --popup-shadow: 0 10px 26px rgb(0 0 0 / 0.55);
   }
 }
 
@@ -119,6 +127,9 @@
   --chart-frame: #3a4156;
   --chart-guide: #5d6580;
   --logo-plate: #e8eaf2;
+  --search-shadow: 0 1px 3px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.35);
+  --search-ring: rgb(129 140 248 / 0.28);
+  --popup-shadow: 0 10px 26px rgb(0 0 0 / 0.55);
 }
 
 /* Half as tall again as the shell's 3rem, so the NWB Benchmarks mark reads at a glance. */
@@ -168,50 +179,20 @@
 }
 
 /* ------------------------------------------------------------------------------------------ */
-/* Summary                                                                                      */
+/* Totals, after dandi/usage-page's: each label over its value, the labels' rules joined into one   */
 /* ------------------------------------------------------------------------------------------ */
 
-.icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
+.summary {
+  margin: 1.25rem 0 1.5rem;
 }
 
-.icon-button:hover:not(:disabled) {
-  color: var(--text);
-  background: var(--accent-soft);
-}
-
-.icon-button:disabled {
-  cursor: progress;
-}
-
-.icon-button[aria-busy="true"] svg {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* After dandi/usage-page's totals: each label over its value, the labels' rules joined into one. */
 .totals-table {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   row-gap: 14px;
   max-width: 100%;
-  margin: 0.25rem auto 0;
+  margin: 0 auto;
   border-collapse: collapse;
 }
 
@@ -253,9 +234,9 @@
 .summary-footer {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.5rem 1rem;
-  margin-top: 1rem;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.5rem;
   font-size: 0.8rem;
   color: var(--muted);
 }
@@ -268,12 +249,45 @@
   margin: 0 0 0 auto;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.icon-button:disabled {
+  cursor: progress;
+}
+
+.icon-button[aria-busy="true"] svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ------------------------------------------------------------------------------------------ */
 /* Search, after CodyCBakerPhD/website's record search                                          */
 /* ------------------------------------------------------------------------------------------ */
 
 .search {
-  margin: 0;
+  margin: 0 0 1.5rem;
 }
 
 .search-field {
@@ -282,8 +296,9 @@
 
 .search-icon {
   position: absolute;
-  left: 0.75rem;
+  left: 1.1rem;
   top: 50%;
+  z-index: 1;
   transform: translateY(-50%);
   color: var(--muted);
   pointer-events: none;
@@ -291,35 +306,58 @@
 
 .search-field input[type="search"] {
   width: 100%;
-  padding: 0.6rem 0.75rem 0.6rem 2.4rem;
-  font-size: 0.95rem;
+  padding: 0.7rem 1.25rem 0.7rem 2.9rem;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--search-shadow);
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+
+.search-field input[type="search"]::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.search-field input[type="search"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--search-ring);
 }
 
 .search-suggestions {
   position: absolute;
   z-index: 20;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
-  max-height: 22rem;
+  max-height: min(30rem, 70vh);
   overflow-y: auto;
   margin: 0;
-  padding: 0.35rem 0;
+  padding: 6px;
   list-style: none;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  border-radius: 14px;
+  box-shadow: var(--popup-shadow);
 }
 
 .search-suggestions li {
-  padding: 0.3rem 0.75rem;
+  font-size: 0.94rem;
+  line-height: 1.5;
 }
 
 .search-group-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -327,8 +365,9 @@
 .search-option {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 1rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 9px;
   cursor: pointer;
 }
 
@@ -339,48 +378,53 @@
 /* Long values (environment labels) wrap rather than run past a phone's edge. */
 .search-option-term {
   min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.9em;
   overflow-wrap: anywhere;
 }
 
 .search-option-key {
   color: var(--accent);
-  font-weight: 600;
 }
 
 .search-option-value {
+  font-weight: 700;
   color: var(--text);
+}
+
+/* A filter's description lines up in a column beside its key. */
+.search-option-filter .search-option-term {
+  flex: 0 0 auto;
+  min-width: 14ch;
 }
 
 .search-option-hint,
 .search-option-count {
-  flex-shrink: 0;
-  font-size: 0.8rem;
+  font-size: 0.85em;
   color: var(--muted);
-}
-
-.search-option-hint {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .search-option-count {
+  flex: 0 0 auto;
+  margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
 
-.search-tip {
-  margin-top: 0.25rem;
-  border-top: 1px solid var(--border);
-  padding-top: 0.5rem !important;
-  font-size: 0.8rem;
-  color: var(--muted);
+.search-note {
+  margin: 0 0 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 0.85em !important;
 }
 
-.search-status {
-  margin: 0.6rem 0 0;
-  font-size: 0.85rem;
+.search-tip {
+  margin-top: 6px;
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 0.82em !important;
   color: var(--muted);
+  border-top: 1px solid var(--border);
 }
 
 /* ------------------------------------------------------------------------------------------ */

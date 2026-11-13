@@ -12,8 +12,9 @@ beforeAll(async () => {
 describe("main.ts boot with filters in the URL", () => {
   it("shows the search and applies it", () => {
     expect(el<HTMLInputElement>("search-input").value).toBe("machine:nobody exclusions:off");
-    expect(el("search-status").textContent).toMatch(/^Showing 0 of \d+ results files\. No machine matches "nobody"\.$/);
-    expect(el("summary-totals").textContent).toContain("Results files0");
+    el("search-input").dispatchEvent(new Event("focus"));
+    expect(document.querySelector(".search-note")?.textContent).toBe('No machine matches "nobody".');
+    expect(el("summary-totals").textContent).toContain("Records0");
   });
 
   it("explains every empty figure instead of drawing it", () => {

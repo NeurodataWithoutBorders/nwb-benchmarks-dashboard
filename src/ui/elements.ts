@@ -46,7 +46,6 @@ export function getElements() {
       form: required<HTMLFormElement>("search-form"),
       input: required<HTMLInputElement>("search-input"),
       list: required<HTMLUListElement>("search-suggestions"),
-      status: required<HTMLParagraphElement>("search-status"),
     },
 
     rankings: {

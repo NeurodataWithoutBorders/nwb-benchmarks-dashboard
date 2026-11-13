@@ -5,6 +5,7 @@
 
 import type { Modality } from "./benchmarkNames";
 import {
+  CURRENT_RESULTS_FORMAT,
   ENVIRONMENT_TIMEPOINTS,
   LBL_MAC_MACHINE_IDS,
   PACKAGES_OF_INTEREST,
@@ -13,7 +14,7 @@ import {
   isExcludedSample,
 } from "./curation";
 import { environmentLabel, machineLabel, type Database, type Run, type Sample } from "./database";
-import { compareVersions } from "./versions";
+import { compareVersions, isAtLeast } from "./versions";
 
 export interface FacetDefinition {
   /** The facet's search key, as in `machine:` or `pynwb:`. */
@@ -228,21 +229,25 @@ export class Dataset {
     this.rankSliceSizes();
   }
 
-  /** `scaling_value.rank("dense").over("modality")`, as `_preprocess_results` computes it. */
+  /** `scaling_value.rank("dense").over("modality")`, as `_preprocess_results` computes it, over the
+   * current format's results; older results, which sliced other sizes, are ranked among themselves so
+   * they do not renumber the current suite's slices. */
   private rankSliceSizes(): void {
-    const sizesByModality = new Map<string | null, Set<number>>();
+    const group = (sample: Sample): string =>
+      `${sample.modality} ${isAtLeast(sample.run.databaseVersion, CURRENT_RESULTS_FORMAT) ? "current" : "older"}`;
+    const sizesByGroup = new Map<string, Set<number>>();
     for (const sample of this.samples) {
       if (sample.scalingValue === null) continue;
-      let sizes = sizesByModality.get(sample.modality);
-      if (!sizes) sizesByModality.set(sample.modality, (sizes = new Set()));
+      let sizes = sizesByGroup.get(group(sample));
+      if (!sizes) sizesByGroup.set(group(sample), (sizes = new Set()));
       sizes.add(sample.scalingValue);
     }
-    const ranks = new Map<string | null, Map<number, number>>();
-    for (const [modality, sizes] of sizesByModality) {
-      ranks.set(modality, new Map([...sizes].sort((a, b) => a - b).map((size, index) => [size, index + 1])));
+    const ranks = new Map<string, Map<number, number>>();
+    for (const [key, sizes] of sizesByGroup) {
+      ranks.set(key, new Map([...sizes].sort((a, b) => a - b).map((size, index) => [size, index + 1])));
     }
     for (const sample of this.samples) {
-      const rank = sample.scalingValue === null ? null : (ranks.get(sample.modality)?.get(sample.scalingValue) ?? null);
+      const rank = sample.scalingValue === null ? null : (ranks.get(group(sample))?.get(sample.scalingValue) ?? null);
       this.sliceNumbers.set(sample, rank);
     }
   }

@@ -61,11 +61,22 @@ describe("parseParameterCase", () => {
     });
   });
 
-  it("turns the bare tuple older results used into an https_url", () => {
+  it("reads the positional tuples results before format 3.0.0 used, each parameter a literal of its own", () => {
     expect(parseParameterCase("(\"'https://x'\",)")).toEqual({ https_url: "https://x" });
+    expect(
+      parseParameterCase(
+        "(\"'https://x'\", \"'ElectricalSeriesAp'\", '(slice(0, 30000, None), slice(0, 384, None))', 'extra')",
+      ),
+    ).toEqual({
+      https_url: "https://x",
+      object_name: "ElectricalSeriesAp",
+      slice_range: ["slice(0, 30000, None)", "slice(0, 384, None)"],
+    });
+    expect(parseParameterCase('("\'unterminated",)')).toEqual({ https_url: "unterminated" });
+    expect(parseParameterCase("(1,)")).toEqual({ https_url: 1 });
     // A bare string indexes to its first character, as it does in Python.
     expect(parseParameterCase("'https://x'")).toEqual({ https_url: "h" });
-    expect(parseParameterCase("(1,)")).toEqual({ https_url: null });
+    expect(parseParameterCase("1")).toEqual({ https_url: null });
   });
 });
 

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // Boots for real with no network: the fetch fails and the card says the server was unreachable.
-// Once the server answers, a retry loads a bundle holding results in an older format, and the summary
-// says how many it left out.
+// Once the server answers, a retry loads a bundle that holds a record in an older format too.
 import { routeFetch } from "@brain-bbqs/test-utils/vitest";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { RESULTS_BUNDLE_URL } from "../../src/lib/bundle";
@@ -24,15 +23,21 @@ describe("main.ts boot offline", () => {
     );
   });
 
-  it("loads a plain-JSON bundle on a retry, counting the files it left out", async () => {
-    const bundle = { ...synthesizeMockBundle(), "results/old.json": { database_version: "2.0.0" } };
+  it("loads a plain-JSON bundle on a retry, older formats and all", async () => {
+    const bundle = {
+      ...synthesizeMockBundle(),
+      "results/timestamp-2024-02-17-00-59-37_machine-old_environment-old_results.json": {
+        database_version: "2.0.0",
+        results: { "time_remote_file_reading.X.time_read": { "(\"'https://x'\",)": [1] } },
+      },
+    };
     vi.stubGlobal(
       "fetch",
       routeFetch([{ match: RESULTS_BUNDLE_URL, respond: () => new Response(JSON.stringify(bundle)) }]),
     );
     el("retry-load-btn").click();
     await dashboardShown();
-    expect(el("summary-note").hidden).toBe(false);
-    expect(el("summary-note").textContent).toBe("1 results files in formats older than the figures read are left out.");
+    expect(el("summary-note").hidden).toBe(true);
+    expect(el("summary-totals").textContent).toMatch(/Machines2/);
   });
 });

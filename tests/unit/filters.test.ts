@@ -88,6 +88,25 @@ describe("applyFilters", () => {
     expect(normalize("  Rübel  Lab ")).toBe("rubel lab");
   });
 
+  it("ranks older formats' slice sizes apart from the current suite's", () => {
+    const mixed = readDatabase({
+      ...readParityBundle(),
+      "results/timestamp-2024-01-01-00-00-00_machine-m_environment-e_results.json": {
+        database_version: "2.0.0",
+        results: {
+          "time_remote_slicing.FsspecNoCacheContinuousSliceBenchmark.time_slice": {
+            "(\"'https://x'\", \"'ElectricalSeries'\", '(slice(0, 7, None),)')": [1],
+          },
+        },
+      },
+    });
+    const dataset = applyFilters(mixed, ALL_DATA);
+    const older = dataset.samples.find((sample) => sample.run.databaseVersion === "2.0.0");
+    expect(older && dataset.sliceNumber(older)).toBe(1);
+    const current = dataset.rows("time_remote_slicing").filter((row) => row.sample.run.databaseVersion !== "2.0.0");
+    expect(new Set(current.map((row) => row.sliceNumber))).toEqual(new Set([1, 2, 3, 4, 5]));
+  });
+
   it("ranks slice sizes within each modality, over the selection", () => {
     const dataset = applyFilters(db, ALL_DATA);
     const slicing = dataset.rows("time_remote_slicing");
