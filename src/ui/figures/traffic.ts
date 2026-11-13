@@ -1,9 +1,9 @@
-// Draws the paper's Figure 5: traffic against runtime on log-log axes, for backend and PyNWB file
-// opening (methods joined across modalities) and for slicing (methods followed across slice sizes).
+// Network traffic against runtime on log-log axes, for backend and PyNWB file opening (methods
+// joined across modalities) and for slicing (methods followed across slice sizes), as
+// nwb-benchmarks' network-runtime correlation plots draw them.
 
-import { svgEl, svgText } from "@brain-bbqs/ui";
 import type { Column } from "../../lib/csv";
-import { formatCompact, formatG, formatMetric, formatSeconds } from "../../lib/format";
+import { formatG, formatMetric, formatSeconds } from "../../lib/format";
 import type { FileOpenTraffic, SlicingTraffic, SlicingTrafficPanel, TrafficPoint } from "../../lib/figures/traffic";
 import {
   MODALITY_MARKERS,
@@ -15,20 +15,21 @@ import {
   methodMarker,
 } from "../../lib/methods";
 import { extent } from "../../lib/scale";
+import { axisNames, gridLayout, legendHeight, type Domain, type GridLayout } from "../charts/grid";
 import {
-  emptyPanel,
-  onHover,
-  panelSlots,
-  slotWidth,
-  type LegendEntry,
-  type Tooltip,
-  type TooltipLine,
-} from "../charts/chrome";
-import { annotation, createPanel, hitTarget, line, marker, throughputLines, type Panel } from "../charts/svg";
-
-function panelHeight(width: number): number {
-  return Math.round(Math.min(440, Math.max(300, width * 0.78)));
-}
+  axis,
+  baseLayout,
+  hoverText,
+  panelLabels,
+  panelLetter,
+  plotlyDash,
+  plotlySymbol,
+  type FigureOptions,
+  type FigureSpec,
+  type Layout,
+  type Trace,
+} from "../charts/plot";
+import type { ChartTheme } from "../charts/theme";
 
 function logDomain(values: number[]): [number, number] | null {
   const range = extent(values, { log: true, pad: 0 });
@@ -41,8 +42,8 @@ function metricLabel(metric: string): string {
   return NETWORK_METRIC_LABELS[metric] ?? metric;
 }
 
-function pointLines(point: TrafficPoint, metric: string): TooltipLine[] {
-  const lines: TooltipLine[] = [
+function pointHover(heading: string, point: TrafficPoint, metric: string): string {
+  const lines = [
     {
       label: `mean runtime (±${formatG(point.runtime.std, 2)}, n = ${point.runtime.n})`,
       value: formatSeconds(point.runtime.mean),
@@ -58,278 +59,339 @@ function pointLines(point: TrafficPoint, metric: string): TooltipLine[] {
       value: `${formatG(point.network.mean / point.runtime.mean / 1e6, 3)} MB/s`,
     });
   }
-  return lines;
+  return hoverText(heading, lines);
 }
 
-function addLetter(panel: Panel, letter: string): void {
-  panel.svg.append(svgText("panel-letter", { x: 2, y: 16 }, letter));
+const PADDING = { top: 34, right: 14, bottom: 48, left: 62 };
+
+/** One log-log panel: its axes, and the dashed lines of constant throughput across it. */
+interface LogPanel {
+  index: number;
+  domain: Domain;
+  x: [number, number];
+  y: [number, number];
 }
 
-function drawFileOpen(slot: HTMLElement, figure: FileOpenTraffic, letter: string, tooltip: Tooltip): void {
-  const xDomain = logDomain(figure.points.map((point) => point.network.mean));
-  const yDomain = logDomain(figure.points.map((point) => point.runtime.mean));
-  if (!xDomain || !yDomain) {
-    emptyPanel(slot, figure.title);
-    return;
-  }
-  const width = slotWidth(slot);
-  const panel = createPanel({
-    width,
-    height: panelHeight(width),
-    title: figure.title,
-    x: {
-      log: true,
-      domain: xDomain,
-      label: metricLabel(figure.metric),
-      format: formatCompact,
-    },
-    y: {
-      log: true,
-      domain: yDomain,
-      label: "Runtime (s)",
-      format: formatCompact,
-    },
-    description: `${figure.title}: ${metricLabel(figure.metric)} against runtime, per method and modality`,
+function logAxes(layout: Layout, theme: ChartTheme, panel: LogPanel, metric: string): void {
+  const names = axisNames(panel.index);
+  // Decades only, once an axis spans enough of them; Plotly otherwise labels the 2s and 5s between.
+  const logRange = (range: [number, number]) => ({
+    type: "log",
+    range: range.map(Math.log10),
+    exponentformat: "SI",
+    dtick: Math.log10(range[1] / range[0]) >= 1.5 ? 1 : "D2",
   });
-  addLetter(panel, letter);
-  throughputLines(panel, figure.throughputRates);
-  for (const method of figure.methods) {
-    const points = ["Ecephys", "Ophys", "Icephys"].flatMap((modality) =>
-      figure.points.filter((point) => point.method === method && point.modality === modality),
-    );
-    const color = methodColor(method);
-    panel.plot.append(
-      line(
-        points.map((point) => [panel.x(point.network.mean), panel.y(point.runtime.mean)]),
-        color,
-        methodLineStyle(method),
-        1.5,
-      ),
-    );
-    for (const point of points) {
-      const x = panel.x(point.network.mean);
-      const y = panel.y(point.runtime.mean);
-      panel.plot.append(marker(MODALITY_MARKERS[point.modality], x, y, color, 9));
-      const target = hitTarget(x, y);
-      panel.overlay.append(target);
-      onHover(target, tooltip, `${methodLabel(method)} · ${point.modality}`, () => pointLines(point, figure.metric));
-    }
+  layout[names.xaxis] = axis(theme, panel.domain.x, names.y, metricLabel(metric), logRange(panel.x));
+  layout[names.yaxis] = axis(theme, panel.domain.y, names.x, "Runtime (s)", logRange(panel.y));
+}
+
+function throughputLines(
+  panel: LogPanel,
+  rates: readonly number[],
+  theme: ChartTheme,
+): { traces: Trace[]; labels: Record<string, unknown>[] } {
+  const names = axisNames(panel.index);
+  const traces: Trace[] = [];
+  const labels: Record<string, unknown>[] = [];
+  const [xMin, xMax] = panel.x;
+  const [yMin, yMax] = panel.y;
+  for (const rate of rates) {
+    const bytesPerSecond = rate * 1e6;
+    const start = Math.max(xMin, yMin * bytesPerSecond);
+    const end = Math.min(xMax, yMax * bytesPerSecond);
+    if (start >= end) continue;
+    traces.push({
+      type: "scatter",
+      mode: "lines",
+      xaxis: names.x,
+      yaxis: names.y,
+      x: [start, end],
+      y: [start / bytesPerSecond, end / bytesPerSecond],
+      line: { color: theme.guide, dash: "dash", width: 1 },
+      hoverinfo: "skip",
+      showlegend: false,
+    });
+    // Labelled inside the plot where the line leaves it: above the line at the right edge, beside it at the top.
+    const atRight = end === xMax;
+    labels.push({
+      text: `${rate} MB/s`,
+      xref: names.x,
+      yref: names.y,
+      x: Math.log10(end),
+      y: Math.log10(end / bytesPerSecond),
+      xanchor: "right",
+      yanchor: atRight ? "bottom" : "top",
+      xshift: atRight ? -2 : -4,
+      yshift: atRight ? 2 : -2,
+      showarrow: false,
+      font: { size: 10, color: theme.muted },
+    });
   }
-  slot.replaceChildren(panel.svg);
+  return { traces, labels };
 }
 
-// The inset's 9px type, by a generous average glyph width, so labels are measured without a layout pass.
-const INSET_CHAR_WIDTH = 5.5;
-const INSET_PAD = 4;
-const INSET_TITLE_HEIGHT = 13;
-const INSET_X_AXIS_HEIGHT = 13;
-
-interface Box {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
+class LegendTracker {
+  private readonly shown = new Set<string>();
+  /** Whether this is the first trace of its legend entry, which is the one that shows it. */
+  first(label: string): boolean {
+    if (this.shown.has(label)) return false;
+    this.shown.add(label);
+    return true;
+  }
 }
 
-export interface InsetLayout {
-  /** The backdrop, holding the title and tick labels as well as the plot box. */
-  frame: Box;
-  /** Where the inset's points go. */
-  box: Box;
-}
-
-/** `ax.inset_axes([0.58, 0.095, 0.40, 0.34])` in `_plot_slicing_network_runtime_trajectories`: a plot box
- * 40% by 34% of the panel's plot area at its lower right, shrunk where needed so that its frame, tick
- * labels included, stays inside the plot area rather than over the axes. */
-export function zeroTrafficInsetLayout(inner: Box, yLabelChars: number): InsetLayout {
-  const gutter = INSET_PAD + yLabelChars * INSET_CHAR_WIDTH + 3;
-  const right = inner.right - 3 * INSET_PAD;
-  const bottom = inner.bottom - INSET_PAD - INSET_X_AXIS_HEIGHT - INSET_PAD;
-  const width = Math.min((inner.right - inner.left) * 0.4, right - inner.left - INSET_PAD - gutter);
-  const height = Math.min((inner.bottom - inner.top) * 0.34, bottom - inner.top - 2 * INSET_PAD - INSET_TITLE_HEIGHT);
-  const box = { left: right - width, top: bottom - height, right, bottom };
+function methodTrace(
+  method: string,
+  points: TrafficPoint[],
+  panel: LogPanel,
+  symbols: string[],
+  hover: string[],
+  theme: ChartTheme,
+  legend: LegendTracker,
+): Trace {
+  const names = axisNames(panel.index);
+  const label = methodLabel(method);
+  const color = theme.color(methodColor(method));
   return {
-    box,
-    frame: {
-      left: box.left - gutter,
-      top: box.top - INSET_TITLE_HEIGHT - INSET_PAD,
-      right: inner.right - INSET_PAD,
-      bottom: inner.bottom - INSET_PAD,
-    },
+    type: "scatter",
+    mode: "lines+markers",
+    xaxis: names.x,
+    yaxis: names.y,
+    x: points.map((point) => point.network.mean),
+    y: points.map((point) => point.runtime.mean),
+    line: { color, dash: plotlyDash(methodLineStyle(method)), width: 1.5 },
+    marker: { color, symbol: symbols, size: 8, line: { color: theme.surface, width: 1 } },
+    name: label,
+    legendgroup: label,
+    showlegend: legend.first(label),
+    customdata: hover,
+    hovertemplate: "%{customdata}<extra></extra>",
   };
 }
 
-function drawZeroTrafficInset(panel: Panel, points: TrafficPoint[]): void {
+/** The panels' cells, worked out before the grid so each panel's height can follow its width. */
+function panelHeight(width: number, count: number): number {
+  const columns = Math.max(1, Math.min(count, Math.floor(width / 340)));
+  const plotWidth = width / columns - PADDING.left - PADDING.right;
+  return Math.round(Math.min(360, Math.max(240, plotWidth * 0.78)));
+}
+
+/** `ax.inset_axes([0.58, 0.095, 0.40, 0.34])`: the slices whose network runs measured no traffic, by slice size. */
+function zeroTrafficInset(
+  points: TrafficPoint[],
+  metric: string,
+  parent: LogPanel,
+  index: number,
+  grid: GridLayout,
+  theme: ChartTheme,
+  layout: Layout,
+  legend: LegendTracker,
+): Trace[] {
+  const names = axisNames(index);
+  const [x0, x1] = parent.domain.x;
+  const [y0, y1] = parent.domain.y;
+  const domain: Domain = {
+    x: [x0 + 0.58 * (x1 - x0), x0 + 0.98 * (x1 - x0)],
+    y: [y0 + 0.095 * (y1 - y0) + grid.fy(14), y0 + 0.435 * (y1 - y0)],
+  };
   const slices = points.map((point) => point.sliceNumber ?? 0);
   const runtimes = points.map((point) => point.runtime.mean);
-  const [minSlice, maxSlice] = [Math.min(...slices), Math.max(...slices)];
   const [minRuntime, maxRuntime] = [Math.min(...runtimes), Math.max(...runtimes)];
-  const yLabels = [formatG(maxRuntime, 2), formatG(minRuntime, 2)];
-  const { frame, box } = zeroTrafficInsetLayout(panel.inner, Math.max(...yLabels.map((label) => label.length)));
-  // Markers keep clear of the box's edges and the labels beside them.
-  const plot = {
-    left: box.left + INSET_PAD,
-    top: box.top + INSET_PAD,
-    right: box.right - INSET_PAD,
-    bottom: box.bottom - INSET_PAD,
-  };
-  const group = svgEl("g", { class: "chart-inset" });
-  group.append(
-    svgEl("rect", {
-      class: "chart-inset-frame",
-      x: frame.left,
-      y: frame.top,
-      width: frame.right - frame.left,
-      height: frame.bottom - frame.top,
-      rx: 4,
-    }),
-    svgEl("rect", {
-      class: "chart-inset-box",
-      x: box.left,
-      y: box.top,
-      width: box.right - box.left,
-      height: box.bottom - box.top,
-    }),
-    svgText(
-      "inset-title",
-      {
-        x: (frame.left + frame.right) / 2,
-        y: frame.top + INSET_PAD + 8,
-        "text-anchor": "middle",
-      },
-      "no traffic measured",
-    ),
-    svgText("inset-tick", { x: box.left - 3, y: plot.top + 3, "text-anchor": "end" }, yLabels[0]),
-    svgText("inset-tick", { x: box.left - 3, y: plot.bottom + 3, "text-anchor": "end" }, yLabels[1]),
-    svgText("inset-tick", { x: plot.left, y: box.bottom + 11, "text-anchor": "middle" }, String(minSlice)),
-    svgText(
-      "inset-tick",
-      {
-        x: (box.left + box.right) / 2,
-        y: box.bottom + 11,
-        "text-anchor": "middle",
-      },
-      "slice",
-    ),
-    svgText("inset-tick", { x: plot.right, y: box.bottom + 11, "text-anchor": "middle" }, String(maxSlice)),
-  );
   const logY = minRuntime > 0 && maxRuntime / minRuntime > 20;
-  const x = (slice: number): number =>
-    plot.left + ((slice - minSlice) / (maxSlice - minSlice || 1)) * (plot.right - plot.left);
-  const yFraction = logY
-    ? (runtime: number) =>
-        (Math.log10(runtime) - Math.log10(minRuntime)) / (Math.log10(maxRuntime) - Math.log10(minRuntime) || 1)
-    : (runtime: number) => (runtime - minRuntime) / (maxRuntime - minRuntime || 1);
-  const y = (runtime: number): number => plot.bottom - yFraction(runtime) * (plot.bottom - plot.top);
-  for (const method of new Set(points.map((point) => point.method))) {
-    const ofMethod = points.filter((point) => point.method === method);
-    const color = methodColor(method);
-    group.append(
-      line(
-        ofMethod.map((point) => [x(point.sliceNumber ?? 0), y(point.runtime.mean)]),
-        color,
-        methodLineStyle(method),
-        1.2,
-      ),
-    );
-    for (const point of ofMethod)
-      group.append(marker(methodMarker(method), x(point.sliceNumber ?? 0), y(point.runtime.mean), color, 5));
-  }
-  panel.overlay.append(group);
-}
-
-function drawTrajectories(
-  slot: HTMLElement,
-  data: SlicingTrafficPanel,
-  figure: SlicingTraffic,
-  letter: string,
-  tooltip: Tooltip,
-): void {
-  const xDomain = logDomain(data.points.map((point) => point.network.mean));
-  const yDomain = logDomain(data.points.map((point) => point.runtime.mean));
-  if (!xDomain || !yDomain) {
-    emptyPanel(slot, data.modality, data.zeroTraffic.length ? "No traffic measured" : "No data");
-    return;
-  }
-  const width = slotWidth(slot);
-  const panel = createPanel({
-    width,
-    height: panelHeight(width),
-    title: data.modality,
-    x: {
-      log: true,
-      domain: xDomain,
-      label: metricLabel(figure.metric),
-      format: formatCompact,
-    },
-    y: {
-      log: true,
-      domain: yDomain,
-      label: "Runtime (s)",
-      format: formatCompact,
-    },
-    description: `${data.modality} slicing: ${metricLabel(figure.metric)} against runtime with increasing slice size`,
+  const small = { color: theme.muted, size: 9 };
+  layout[names.xaxis] = axis(theme, domain.x, names.y, "", {
+    tickvals: [Math.min(...slices), Math.max(...slices)],
+    tickfont: small,
+    showgrid: false,
+    fixedrange: true,
   });
-  addLetter(panel, letter);
-  throughputLines(panel, figure.throughputRates);
-  for (const method of figure.methods) {
-    const points = data.points.filter((point) => point.method === method);
-    if (points.length === 0) continue;
-    const color = methodColor(method);
-    const projected = points.map((point): [number, number] => [
-      panel.x(point.network.mean),
-      panel.y(point.runtime.mean),
-    ]);
-    panel.plot.append(line(projected, color, methodLineStyle(method), 1.5));
-    points.forEach((point, index) => {
-      const [x, y] = projected[index];
-      panel.plot.append(marker(methodMarker(method), x, y, color, 7));
-      const target = hitTarget(x, y, 10);
-      panel.overlay.append(target);
-      onHover(target, tooltip, `${methodLabel(method)} · ${data.modality} · slice ${point.sliceNumber ?? "?"}`, () =>
-        pointLines(point, figure.metric),
-      );
-    });
-    const [lastX, lastY] = projected[projected.length - 1];
-    panel.overlay.append(annotation(lastX, lastY, String(points[points.length - 1].sliceNumber ?? "")));
-  }
-  if (data.zeroTraffic.length) drawZeroTrafficInset(panel, data.zeroTraffic);
-  slot.replaceChildren(panel.svg);
+  layout[names.yaxis] = axis(theme, domain.y, names.x, "", {
+    type: logY ? "log" : "linear",
+    tickvals: [minRuntime, maxRuntime],
+    ticktext: [formatG(minRuntime, 2), formatG(maxRuntime, 2)],
+    tickfont: small,
+    showgrid: false,
+    fixedrange: true,
+  });
+  (layout.annotations as Record<string, unknown>[]).push({
+    text: "no traffic measured",
+    xref: "paper",
+    yref: "paper",
+    x: (domain.x[0] + domain.x[1]) / 2,
+    y: domain.y[1],
+    yanchor: "bottom",
+    showarrow: false,
+    font: small,
+    bgcolor: theme.surface,
+  });
+  const panel: LogPanel = { index, domain, x: [0, 0], y: [0, 0] };
+  return [...new Set(points.map((point) => point.method))].map((method) => {
+    const ofMethod = points.filter((point) => point.method === method);
+    const trace = methodTrace(
+      method,
+      ofMethod,
+      panel,
+      ofMethod.map(() => plotlySymbol(methodMarker(method))),
+      ofMethod.map((point) => pointHover(`${methodLabel(method)} · slice ${point.sliceNumber ?? "?"}`, point, metric)),
+      theme,
+      legend,
+    );
+    return {
+      ...trace,
+      x: ofMethod.map((point) => point.sliceNumber ?? 0),
+      marker: { ...(trace.marker as object), size: 5 },
+    };
+  });
 }
 
-export function renderTraffic(
-  target: HTMLElement,
+export function trafficFigure(
   fileOpen: FileOpenTraffic[],
   slicing: SlicingTraffic,
-  tooltip: Tooltip,
-): void {
-  const slots = panelSlots(target, fileOpen.length + slicing.panels.length, 340);
-  fileOpen.forEach((figure, index) => drawFileOpen(slots[index], figure, `${"ab"[index]})`, tooltip));
-  slicing.panels.forEach((panel, index) =>
-    drawTrajectories(slots[fileOpen.length + index], panel, slicing, `${"cde"[index]})`, tooltip),
-  );
+  { width, theme, letters }: FigureOptions,
+): FigureSpec {
+  const titles = [...fileOpen.map((figure) => figure.title), ...slicing.panels.map((panel) => panel.modality)];
+  const methods = new Set([...fileOpen.flatMap((figure) => figure.methods), ...slicing.methods].map(methodLabel));
+  const fileOpenModalities = Object.keys(MODALITY_MARKERS);
+  const grid = gridLayout({
+    width,
+    panelHeights: titles.map(() => panelHeight(width, titles.length)),
+    minPanelWidth: 340,
+    padding: PADDING,
+    bottom: legendHeight(methods.size + fileOpenModalities.length, width),
+  });
+  const layout = baseLayout(theme, grid, true);
+  const annotations = layout.annotations as Record<string, unknown>[];
+  const legend = new LegendTracker();
+  const data: Trace[] = [];
+  let nextAxis = titles.length;
+
+  const addPanel = (
+    index: number,
+    points: TrafficPoint[],
+    metric: string,
+    rates: readonly number[],
+  ): LogPanel | null => {
+    const domain = grid.domains[index];
+    annotations.push(...panelLabels(theme, grid, domain, titles[index], panelLetter(letters, index), PADDING));
+    const x = logDomain(points.map((point) => point.network.mean));
+    const y = logDomain(points.map((point) => point.runtime.mean));
+    const names = axisNames(index);
+    if (!x || !y) {
+      layout[names.xaxis] = axis(theme, domain.x, names.y, "", { visible: false });
+      layout[names.yaxis] = axis(theme, domain.y, names.x, "", { visible: false });
+      return null;
+    }
+    const panel: LogPanel = { index, domain, x, y };
+    logAxes(layout, theme, panel, metric);
+    const guides = throughputLines(panel, rates, theme);
+    data.push(...guides.traces);
+    annotations.push(...guides.labels);
+    return panel;
+  };
+
+  fileOpen.forEach((figure, index) => {
+    const panel = addPanel(index, figure.points, figure.metric, figure.throughputRates);
+    if (!panel) {
+      annotations.push(noData(grid.domains[index], "No data", theme));
+      return;
+    }
+    for (const method of figure.methods) {
+      const points = fileOpenModalities.flatMap((modality) =>
+        figure.points.filter((point) => point.method === method && point.modality === modality),
+      );
+      data.push(
+        methodTrace(
+          method,
+          points,
+          panel,
+          points.map((point) => plotlySymbol(MODALITY_MARKERS[point.modality])),
+          points.map((point) => pointHover(`${methodLabel(method)} · ${point.modality}`, point, figure.metric)),
+          theme,
+          legend,
+        ),
+      );
+    }
+  });
+
+  slicing.panels.forEach((slicingPanel: SlicingTrafficPanel, offset) => {
+    const index = fileOpen.length + offset;
+    const panel = addPanel(index, slicingPanel.points, slicing.metric, slicing.throughputRates);
+    if (!panel) {
+      annotations.push(
+        noData(grid.domains[index], slicingPanel.zeroTraffic.length ? "No traffic measured" : "No data", theme),
+      );
+      return;
+    }
+    const names = axisNames(index);
+    for (const method of slicing.methods) {
+      const points = slicingPanel.points.filter((point) => point.method === method);
+      if (points.length === 0) continue;
+      data.push(
+        methodTrace(
+          method,
+          points,
+          panel,
+          points.map(() => plotlySymbol(methodMarker(method))),
+          points.map((point) =>
+            pointHover(
+              `${methodLabel(method)} · ${slicingPanel.modality} · slice ${point.sliceNumber ?? "?"}`,
+              point,
+              slicing.metric,
+            ),
+          ),
+          theme,
+          legend,
+        ),
+      );
+      const last = points[points.length - 1];
+      annotations.push({
+        text: String(last.sliceNumber ?? ""),
+        xref: names.x,
+        yref: names.y,
+        x: Math.log10(last.network.mean),
+        y: Math.log10(last.runtime.mean),
+        xanchor: "left",
+        yanchor: "bottom",
+        xshift: 3,
+        yshift: 2,
+        showarrow: false,
+        font: { size: 10, color: theme.muted },
+      });
+    }
+    if (slicingPanel.zeroTraffic.length) {
+      data.push(
+        ...zeroTrafficInset(slicingPanel.zeroTraffic, slicing.metric, panel, nextAxis, grid, theme, layout, legend),
+      );
+      nextAxis++;
+    }
+  });
+
+  // The modalities' markers, which the file-opening panels tell apart by shape.
+  for (const modality of fileOpenModalities) {
+    data.push({
+      type: "scatter",
+      mode: "markers",
+      x: [null],
+      y: [null],
+      marker: { color: theme.text, symbol: plotlySymbol(MODALITY_MARKERS[modality]), size: 8 },
+      name: `${modality} (file opening)`,
+      legendgroup: `modality-${modality}`,
+      hoverinfo: "skip",
+    });
+  }
+  return { data, layout };
 }
 
-export function trafficLegend(fileOpen: FileOpenTraffic[], slicing: SlicingTraffic): LegendEntry[] {
-  const methods = new Map<string, string>();
-  for (const method of [...fileOpen.flatMap((figure) => figure.methods), ...slicing.methods]) {
-    const label = methodLabel(method);
-    if (!methods.has(label)) methods.set(label, method);
-  }
-  return [
-    ...[...methods.entries()].map(([label, method]) => ({
-      label,
-      color: methodColor(method),
-      lineStyle: methodLineStyle(method),
-      marker: methodMarker(method),
-    })),
-    ...Object.entries(MODALITY_MARKERS).map(([modality, shape]) => ({
-      label: `${modality} (panels a, b)`,
-      color: "var(--text)",
-      lineStyle: null,
-      marker: shape,
-    })),
-  ];
+function noData(domain: Domain, message: string, theme: ChartTheme): Record<string, unknown> {
+  return {
+    text: message,
+    xref: "paper",
+    yref: "paper",
+    x: (domain.x[0] + domain.x[1]) / 2,
+    y: (domain.y[0] + domain.y[1]) / 2,
+    showarrow: false,
+    font: { color: theme.muted },
+  };
 }
 
 export interface TrafficRow {

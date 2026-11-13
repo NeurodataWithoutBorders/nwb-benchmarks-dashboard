@@ -4,30 +4,35 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { MANUSCRIPT_DESCRIPTION } from "../../src/lib/filters";
 import { bootMain, dashboardShown, el, publishedBundleFetch } from "./helpers/mainHarness";
+import { lastPlot } from "./helpers/plotly";
 
 beforeAll(async () => {
-  await bootMain({ url: "?manuscript&machine=ignored", fetch: publishedBundleFetch() });
+  await bootMain({ url: "?manuscript&q=machine%3Aignored", fetch: publishedBundleFetch() });
   await dashboardShown();
 });
 
 describe("main.ts boot at ?manuscript", () => {
-  it("opens the manuscript view in place of any filters in the URL", () => {
+  it("opens the manuscript view in place of any search in the URL", () => {
     expect(window.location.search).toBe("?manuscript");
-    expect(document.querySelector(".preset-button[aria-pressed='true']")?.textContent).toBe("Manuscript figures");
-    expect(el("filter-summary").textContent).toBe(MANUSCRIPT_DESCRIPTION);
+    expect(el("manuscript-toggle").getAttribute("aria-pressed")).toBe("true");
+    expect(el<HTMLInputElement>("search-input").value).toBe("");
+    expect(el("search-status").textContent).toBe(MANUSCRIPT_DESCRIPTION);
   });
 
-  it("draws the single-environment figures from the reference environment", () => {
-    expect(el("rankings-figure").querySelectorAll("svg.chart")).toHaveLength(4);
+  it("draws the single-environment figures from the reference environment, lettering the panels", () => {
+    const rankings = lastPlot(el("rankings-plot"));
+    expect(rankings?.data.filter((trace) => trace.type === "heatmap")).toHaveLength(4);
+    expect((rankings?.layout.annotations as { text: string }[]).map((annotation) => annotation.text)).toContain(
+      "<b>d)</b>",
+    );
     expect(el("rankings-note").hidden).toBe(true);
-    expect(el("versions-figure").textContent).toContain("2026-10-07");
+    const versions = lastPlot(el("versions-plot"));
+    expect(JSON.stringify(versions?.layout.xaxis)).toContain("2026-10-07");
   });
 
-  it("goes back to every result", () => {
-    [...document.querySelectorAll<HTMLButtonElement>(".preset-button")]
-      .find((button) => button.textContent === "All results")
-      ?.click();
+  it("goes back to every result from the toggle", () => {
+    el("manuscript-toggle").click();
     expect(window.location.search).toBe("");
-    expect(el("filter-summary").textContent).not.toBe(MANUSCRIPT_DESCRIPTION);
+    expect(el("search-status").textContent).not.toBe(MANUSCRIPT_DESCRIPTION);
   });
 });

@@ -1,91 +1,146 @@
-// Draws the incremental slicing figure: per modality, the median cumulative time of each curve with
-// its range across runs as a band, and a cross where streaming first falls behind downloading.
+// The incremental slicing figure: per modality, the median cumulative time of each curve with its
+// range across runs as a band, and a cross where streaming first falls behind downloading, as
+// nwb-benchmarks' `plot_incremental_slicing_benchmarks` draws it.
 
 import type { Column } from "../../lib/csv";
-import { formatSeconds, formatTick } from "../../lib/format";
+import { formatSeconds } from "../../lib/format";
 import { incrementalOverview, type IncrementalOverview, type IncrementalPanel } from "../../lib/figures/incremental";
-import { extent, niceDomain } from "../../lib/scale";
-import { onHover, panelSlots, slotWidth, type LegendEntry, type Tooltip } from "../charts/chrome";
-import { band, createPanel, cross, hitTarget, line } from "../charts/svg";
+import { axisNames, gridLayout, legendHeight } from "../charts/grid";
+import {
+  axis,
+  baseLayout,
+  hoverText,
+  panelLabels,
+  panelLetter,
+  plotlyDash,
+  type FigureOptions,
+  type FigureSpec,
+  type Trace,
+} from "../charts/plot";
+import { translucent } from "../charts/theme";
 
 export type TimeAxis = "linear" | "log";
 
-function drawPanel(slot: HTMLElement, panel: IncrementalPanel, axis: TimeAxis, tooltip: Tooltip): void {
-  const log = axis === "log";
-  const values = panel.curves.flatMap((curve) => curve.points.flatMap((point) => [point.min, point.max, point.median]));
-  const range = extent(values, { log, pad: log ? 0.02 : 0.04 }) ?? [0.1, 1];
-  const lastIndex = Math.max(...panel.curves.flatMap((curve) => curve.points.map((point) => point.sliceIndex)));
-  const width = slotWidth(slot);
-  const view = createPanel({
-    width,
-    height: Math.round(Math.min(400, Math.max(300, width * 0.75))),
-    title: panel.modality,
-    x: {
-      domain: [0, Math.max(1, lastIndex)],
-      label: panel.modality === "Icephys" ? "Number of TimeSeries read" : "Number of slices read",
-      format: formatTick,
-    },
-    y: {
-      log,
-      domain: log ? range : niceDomain(Math.max(0, range[0]), range[1], 5),
-      label: log ? "Cumulative time (s, log scale)" : "Cumulative time (s)",
-      format: formatTick,
-    },
-    margin: { left: 62 },
-    description: `${panel.modality}: cumulative time to read every slice, streaming against downloading first`,
-  });
-  const y = (value: number): number => (log && value <= 0 ? view.inner.bottom : view.y(value));
-  for (const curve of panel.curves) {
-    if (curve.points.some((point) => point.n > 1)) {
-      view.plot.append(
-        band(
-          curve.points.map((point) => [view.x(point.sliceIndex), y(point.max)]),
-          curve.points.map((point) => [view.x(point.sliceIndex), y(point.min)]),
-          curve.color,
-        ),
-      );
-    }
-    view.plot.append(
-      line(
-        curve.points.map((point) => [view.x(point.sliceIndex), y(point.median)]),
-        curve.color,
-        curve.lineStyle,
-      ),
-    );
-  }
-  for (const curve of panel.curves) {
-    if (curve.crossover === null) continue;
-    const point = curve.points[curve.crossover];
-    const x = view.x(point.sliceIndex);
-    const yPosition = y(point.median);
-    view.overlay.append(cross(x, yPosition, curve.color));
-    const target = hitTarget(x, yPosition);
-    view.overlay.append(target);
-    onHover(target, tooltip, `${curve.label} · ${panel.modality}`, () => [
-      { label: "first slice slower than downloading first", value: String(point.sliceIndex) },
-      { label: "cumulative time there", value: formatSeconds(point.median) },
-    ]);
-  }
-  slot.replaceChildren(view.svg);
-}
-
-export function renderIncremental(
-  target: HTMLElement,
+export function incrementalFigure(
   panels: IncrementalPanel[],
-  axis: TimeAxis,
-  tooltip: Tooltip,
-): void {
-  const slots = panelSlots(target, panels.length, 300);
-  panels.forEach((panel, index) => drawPanel(slots[index], panel, axis, tooltip));
-}
-
-export function incrementalLegend(panels: IncrementalPanel[]): LegendEntry[] {
-  const seen = new Map<string, LegendEntry>();
-  for (const curve of panels.flatMap((panel) => panel.curves)) {
-    if (!seen.has(curve.label))
-      seen.set(curve.label, { label: curve.label, color: curve.color, lineStyle: curve.lineStyle });
-  }
-  return [...seen.values()];
+  timeAxis: TimeAxis,
+  { width, theme, letters }: FigureOptions,
+): FigureSpec {
+  const log = timeAxis === "log";
+  const padding = { top: 32, right: 14, bottom: 50, left: 64 };
+  const columns = Math.max(1, Math.min(panels.length, Math.floor(width / 320)));
+  const plotWidth = width / columns - padding.left - padding.right;
+  const curveLabels = new Set(panels.flatMap((panel) => panel.curves.map((curve) => curve.label)));
+  const grid = gridLayout({
+    width,
+    panelHeights: panels.map(() => Math.round(Math.min(340, Math.max(220, plotWidth * 0.72)))),
+    minPanelWidth: 320,
+    padding,
+    bottom: legendHeight(curveLabels.size, width),
+  });
+  const layout = baseLayout(theme, grid, true);
+  const annotations = layout.annotations as Record<string, unknown>[];
+  const shown = new Set<string>();
+  const data: Trace[] = [];
+  // A logarithmic axis cannot show zero: those values are left out of the line.
+  const onAxis = (value: number): number | null => (log && value <= 0 ? null : value);
+  panels.forEach((panel, index) => {
+    const names = axisNames(index);
+    const domain = grid.domains[index];
+    const lastIndex = Math.max(...panel.curves.flatMap((curve) => curve.points.map((point) => point.sliceIndex)));
+    layout[names.xaxis] = axis(
+      theme,
+      domain.x,
+      names.y,
+      panel.modality === "Icephys" ? "Number of TimeSeries read" : "Number of slices read",
+      { range: [0, Math.max(1, lastIndex)] },
+    );
+    layout[names.yaxis] = axis(
+      theme,
+      domain.y,
+      names.x,
+      log ? "Cumulative time (s, log scale)" : "Cumulative time (s)",
+      {
+        type: log ? "log" : "linear",
+        rangemode: log ? "normal" : "tozero",
+      },
+    );
+    annotations.push(...panelLabels(theme, grid, domain, panel.modality, panelLetter(letters, index), padding));
+    const at = { xaxis: names.x, yaxis: names.y };
+    for (const curve of panel.curves) {
+      const color = theme.color(curve.color);
+      const x = curve.points.map((point) => point.sliceIndex);
+      if (curve.points.some((point) => point.n > 1)) {
+        data.push(
+          {
+            type: "scatter",
+            mode: "lines",
+            ...at,
+            x,
+            y: curve.points.map((point) => onAxis(point.max)),
+            line: { width: 0, color },
+            hoverinfo: "skip",
+            showlegend: false,
+            legendgroup: curve.label,
+          },
+          {
+            type: "scatter",
+            mode: "lines",
+            ...at,
+            x,
+            y: curve.points.map((point) => onAxis(point.min)),
+            line: { width: 0, color },
+            fill: "tonexty",
+            fillcolor: translucent(color, 0.18),
+            hoverinfo: "skip",
+            showlegend: false,
+            legendgroup: curve.label,
+          },
+        );
+      }
+      data.push({
+        type: "scatter",
+        mode: "lines",
+        ...at,
+        x,
+        y: curve.points.map((point) => onAxis(point.median)),
+        line: { color, dash: plotlyDash(curve.lineStyle), width: 2 },
+        name: curve.label,
+        legendgroup: curve.label,
+        showlegend: !shown.has(curve.label),
+        customdata: curve.points.map((point) =>
+          hoverText(`${curve.label} · ${panel.modality}`, [
+            { label: "slices read", value: String(point.sliceIndex) },
+            { label: "median cumulative time", value: formatSeconds(point.median) },
+            { label: "runs", value: String(point.n) },
+          ]),
+        ),
+        hovertemplate: "%{customdata}<extra></extra>",
+      });
+      shown.add(curve.label);
+      if (curve.crossover !== null) {
+        const point = curve.points[curve.crossover];
+        data.push({
+          type: "scatter",
+          mode: "markers",
+          ...at,
+          x: [point.sliceIndex],
+          y: [onAxis(point.median)],
+          marker: { symbol: "x-thin", size: 12, color, line: { color, width: 2.5 } },
+          showlegend: false,
+          legendgroup: curve.label,
+          customdata: [
+            hoverText(`${curve.label} · ${panel.modality}`, [
+              { label: "first slice slower than downloading first", value: String(point.sliceIndex) },
+              { label: "cumulative time there", value: formatSeconds(point.median) },
+            ]),
+          ],
+          hovertemplate: "%{customdata}<extra></extra>",
+        });
+      }
+    }
+  });
+  return { data, layout };
 }
 
 export function incrementalRows(panels: IncrementalPanel[]): IncrementalOverview[] {

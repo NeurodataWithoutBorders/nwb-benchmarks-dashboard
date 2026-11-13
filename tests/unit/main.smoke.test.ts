@@ -3,17 +3,22 @@
 // published bundle, and drives the dashboard and the shell end to end. Besides covering main.ts's
 // wiring, this guards the index.html/elements.ts id contract: getShell() and getElements() throw
 // on import if any registered id is missing from the page.
-import { installObserverStub, throwingStorage } from "@brain-bbqs/test-utils/vitest";
+import { installObserverStub, routeFetch, throwingStorage } from "@brain-bbqs/test-utils/vitest";
+import Plotly from "plotly.js-cartesian-dist-min";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { ENVIRONMENT_TIMEPOINTS, LBL_MAC_MACHINE_IDS } from "../../src/lib/curation";
+import { RESULTS_BUNDLE_URL } from "../../src/lib/bundle";
+import { MANUSCRIPT_DESCRIPTION } from "../../src/lib/filters";
 import { THEME_KEY } from "../../src/lib/settings";
-import { bootMain, dashboardShown, el, publishedBundleFetch } from "./helpers/mainHarness";
+import { bootMain, dashboardShown, el, publishedBundleFetch, search } from "./helpers/mainHarness";
+import { lastPlot, plotCount } from "./helpers/plotly";
 
 let resizeObservers: ReturnType<typeof installObserverStub>;
+let fetched: ReturnType<typeof publishedBundleFetch>;
 
 beforeAll(async () => {
+  fetched = publishedBundleFetch();
   await bootMain({
-    fetch: publishedBundleFetch(),
+    fetch: fetched,
     beforeImport: () => {
       resizeObservers = { instances: [], restore: () => {} };
       const Original = window.ResizeObserver;
@@ -28,170 +33,192 @@ beforeAll(async () => {
   await dashboardShown();
 });
 
-function manuscriptButton(): HTMLButtonElement {
-  return [...document.querySelectorAll<HTMLButtonElement>(".preset-button")].find(
-    (button) => button.textContent === "Manuscript figures",
-  ) as HTMLButtonElement;
-}
-
 function select(id: string, value: string): void {
   const element = el<HTMLSelectElement>(id);
   element.value = value;
   element.dispatchEvent(new Event("change"));
 }
 
+function annotations(id: string): string[] {
+  return ((lastPlot(el(id))?.layout.annotations ?? []) as { text: string }[]).map((annotation) => annotation.text);
+}
+
+function totals(): Record<string, string> {
+  return Object.fromEntries(
+    [...el<HTMLTableElement>("summary-totals").rows].map((row) => [
+      row.cells[0].textContent ?? "",
+      row.cells[1].textContent ?? "",
+    ]),
+  );
+}
+
 describe("main.ts boot", () => {
-  it("stamps the version into the footer link", () => {
+  it("renders the shell, and the dashboard in place of the loading card", () => {
     expect(el("version-indicator").textContent).toMatch(/^v\d+\.\d+\.\d+$/);
-  });
-
-  it("loads the published bundle and opens on every result", () => {
     expect(el("load-card").hidden).toBe(true);
-    expect(el("data-summary").textContent).toContain("published by NeurodataWithoutBorders/nwb-benchmarks-results");
-    const pressed = document.querySelector(".preset-button[aria-pressed='true']");
-    expect(pressed?.textContent).toBe("All results");
-    expect(window.location.search).toBe("");
-    expect(el<HTMLInputElement>("filter-from").value).toBe("");
+    expect(fetched.calls[0].init?.cache).toBeUndefined();
   });
 
-  it("draws every figure card", () => {
-    expect(el("rankings-figure").querySelectorAll("svg.chart")).toHaveLength(4);
-    expect(el("traffic-figure").querySelectorAll("svg.chart").length).toBeGreaterThan(0);
-    expect(el("versions-figure").querySelectorAll("svg.chart")).toHaveLength(3);
-    expect(el("incremental-figure").querySelectorAll("svg.chart")).toHaveLength(3);
-    expect(el("versions-legend").children.length).toBeGreaterThan(0);
+  it("totals every result, with the date of the latest", () => {
+    expect(Object.keys(totals())).toEqual(["Results files", "Machines", "Environments", "Benchmarks", "Test cases"]);
+    expect(Number(totals()["Results files"])).toBeGreaterThan(10);
+    expect(el("summary-updated").textContent).toMatch(/^Last updated \d{4}-\d{2}-\d{2}$/);
+    expect(el("search-status").textContent).toMatch(/^Showing all \d+ results files\./);
+    expect(window.location.search).toBe("");
+  });
+
+  it("draws every figure with Plotly, unlettered outside the manuscript view", () => {
+    expect(lastPlot(el("rankings-plot"))?.data.filter((trace) => trace.type === "heatmap")).toHaveLength(4);
+    expect(lastPlot(el("traffic-plot"))?.config.modeBarButtonsToRemove).toEqual(["toImage", "sendChartToCloud"]);
+    for (const id of ["rankings", "traffic", "versions", "incremental"]) {
+      expect(el(`${id}-note`).hidden).toBe(true);
+      expect(annotations(`${id}-plot`)).not.toContain("<b>a)</b>");
+    }
   });
 
   it("redraws a figure for its own controls", () => {
+    const before = plotCount(el("versions-plot"));
     select("rankings-scale", "data");
     select("traffic-metric", "total_transfer_in_number_of_packets");
     select("traffic-preload", "true");
     select("versions-benchmark", "time_remote_slicing");
-    expect(el("versions-figure").querySelectorAll("svg.chart")).toHaveLength(6);
+    expect(plotCount(el("versions-plot"))).toBe(before + 1);
     select("versions-axis", "pkg-h5py");
     select("incremental-scale", "log");
-    expect(el("incremental-figure").textContent).toContain("log scale");
+    expect((lastPlot(el("incremental-plot"))?.layout.yaxis as { type: string }).type).toBe("log");
   });
 
-  it("shows the manuscript figures on request, each from its own selection", () => {
-    manuscriptButton().click();
+  it("narrows the results from the search, and says what it could not use", () => {
+    search("environment:2026-10-07 machin:");
+    expect(window.location.search).toBe("?q=environment%3A2026-10-07+machin%3A");
+    expect(el("search-status").textContent).toMatch(
+      /^Showing \d+ of \d+ results files\. There is no machin: filter\. Did you mean machine:\?$/,
+    );
+    expect(totals().Environments).toBe("1");
+    // One environment is nothing to compare across.
+    expect(el("versions-note").textContent).toContain("widen the search to compare several");
+
+    search("machine:nobody");
+    expect(el("rankings-note").textContent).toContain("No remote file-opening or slicing results match the search.");
+    expect(el("traffic-note").textContent).toContain("No pairs of network-tracking and timing results");
+    expect(el("incremental-note").textContent).toContain("No incremental slicing results");
+    expect(el<HTMLButtonElement>("rankings-csv-btn").disabled).toBe(true);
+    expect(annotations("versions-plot")).toEqual(["No PyNWB timing results match the search."]);
+
+    search("");
+    expect(window.location.search).toBe("");
+  });
+
+  it("shows the manuscript figures from the header's toggle, and leaves them for any search", () => {
+    const toggle = el("manuscript-toggle");
+    toggle.click();
     expect(window.location.search).toBe("?manuscript");
-    expect(document.querySelector(".preset-button[aria-pressed='true']")?.textContent).toBe("Manuscript figures");
-    expect(el("filter-summary").textContent).toContain("The manuscript's selections");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(el("search-status").textContent).toBe(MANUSCRIPT_DESCRIPTION);
+    expect(el<HTMLInputElement>("search-input").value).toBe("");
     expect(el<HTMLSelectElement>("rankings-scale").value).toBe("paper");
     expect(el<HTMLSelectElement>("traffic-metric").value).toBe("total_transfer_in_bytes");
     expect(el<HTMLSelectElement>("versions-axis").value).toBe("environment");
-    // Figure 4b compares the dated environments, and the incremental figure comes from the latest of them.
+    expect(annotations("rankings-plot")).toContain("<b>a)</b>");
+    // The comparison across versions takes the dated environments, so it has several to compare.
     expect(el("versions-note").hidden).toBe(true);
-    expect(el("versions-figure").textContent).toContain("2024-06-30");
-    expect(el("incremental-figure").querySelectorAll("svg.chart")).toHaveLength(3);
-    // The filters show the reference selection, which a change leaves the manuscript view with.
-    for (const id of LBL_MAC_MACHINE_IDS) expect(el("facet-list").textContent).toContain(id.slice(0, 7));
-    const exclusions = el<HTMLInputElement>("filter-exclusions");
-    exclusions.checked = false;
-    exclusions.dispatchEvent(new Event("change"));
-    expect(window.location.search).not.toContain("manuscript");
-    expect(window.location.search).toContain(`environment=${ENVIRONMENT_TIMEPOINTS["2026-10-07"]}`);
-    expect(el("versions-note").hidden).toBe(false);
+
+    toggle.click();
+    expect(window.location.search).toBe("");
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(annotations("rankings-plot")).not.toContain("<b>a)</b>");
+
+    toggle.click();
+    search("pynwb:3");
+    expect(window.location.search).toBe("?q=pynwb%3A3");
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    search("");
   });
 
-  it("narrows the selection from the filters", () => {
-    const all = [...document.querySelectorAll<HTMLButtonElement>(".preset-button")].find(
-      (button) => button.textContent === "All results",
-    );
-    all?.click();
-    expect(window.location.search).not.toContain("machine=");
+  it("switches a figure between its plot and its table, and saves the table", () => {
+    el<HTMLInputElement>("rankings-view-table").click();
+    expect(el("rankings-plot").hidden).toBe(true);
+    expect(el("rankings-table-view").hidden).toBe(false);
+    expect(el("rankings-table").querySelectorAll("tbody tr").length).toBeGreaterThan(0);
+    const drawn = plotCount(el("rankings-plot"));
+    select("rankings-scale", "paper");
+    // A hidden plot is not drawn again until it is shown.
+    expect(plotCount(el("rankings-plot"))).toBe(drawn);
 
-    const from = el<HTMLInputElement>("filter-from");
-    from.value = "2026-10-01";
-    from.dispatchEvent(new Event("change"));
-    expect(window.location.search).toContain("from=2026-10-01");
-    const to = el<HTMLInputElement>("filter-to");
-    to.value = "2026-12-31";
-    to.dispatchEvent(new Event("change"));
-    expect(window.location.search).toContain("to=2026-12-31");
-    const exclusions = el<HTMLInputElement>("filter-exclusions");
-    exclusions.checked = false;
-    exclusions.dispatchEvent(new Event("change"));
-    expect(window.location.search).toContain("exclusions=off");
-    expect(el("filter-exclusions-label").textContent).toBe("Leave out the 7 curated outlier samples");
-  });
-
-  it("narrows and reopens a facet", () => {
-    const facet = document.querySelector<HTMLDetailsElement>(
-      "details.facet[data-facet='machine']",
-    ) as HTMLDetailsElement;
-    facet.open = true;
-    facet.dispatchEvent(new Event("toggle"));
-    const firstBox = facet.querySelector<HTMLInputElement>("input[type='checkbox']") as HTMLInputElement;
-    firstBox.checked = false;
-    firstBox.dispatchEvent(new Event("change"));
-    const reopened = document.querySelector<HTMLDetailsElement>(
-      "details.facet[data-facet='machine']",
-    ) as HTMLDetailsElement;
-    expect(reopened.open).toBe(true);
-    expect(reopened.querySelector(".facet-count")?.textContent).toMatch(/^\d+ of \d+$/);
-    reopened.querySelector<HTMLButtonElement>(".facet-only")?.click();
-    expect(new URLSearchParams(window.location.search).getAll("machine")).toHaveLength(1);
-    document.querySelector<HTMLButtonElement>("details.facet[data-facet='machine'] .facet-all")?.click();
-    expect(window.location.search).not.toContain("machine=");
-    const closing = document.querySelector<HTMLDetailsElement>(
-      "details.facet[data-facet='machine']",
-    ) as HTMLDetailsElement;
-    closing.open = false;
-    closing.dispatchEvent(new Event("toggle"));
-
-    const more = document.querySelector<HTMLDetailsElement>("details.facet-more") as HTMLDetailsElement;
-    more.open = true;
-    more.dispatchEvent(new Event("toggle"));
-    more.querySelector<HTMLButtonElement>("details.facet[data-facet='pkg-h5py'] .facet-only")?.click();
-    expect(document.querySelector("details.facet-more summary")?.textContent).toContain("(1 narrowed)");
-  });
-
-  it("saves a figure's table and drawing", () => {
-    manuscriptButton().click();
     const createObjectURL = vi.fn(() => "blob:x");
     vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     el("rankings-csv-btn").click();
-    el("traffic-svg-btn").click();
-    expect(click).toHaveBeenCalledTimes(2);
+    expect(click).toHaveBeenCalledTimes(1);
     click.mockRestore();
+
+    el<HTMLInputElement>("rankings-view-plot").click();
+    expect(el("rankings-plot").hidden).toBe(false);
+    expect(el("rankings-table-view").hidden).toBe(true);
+    expect(plotCount(el("rankings-plot"))).toBe(drawn + 1);
   });
 
   it("redraws a figure when its width changes", () => {
     const observer = resizeObservers.instances[0] as unknown as { callback: ResizeObserverCallback };
-    const figure = el("rankings-figure");
-    const before = figure.querySelector("svg");
-    observer.callback(
-      [{ target: figure, contentRect: { width: 500 } } as unknown as ResizeObserverEntry],
-      observer as never,
-    );
-    observer.callback(
-      [{ target: figure, contentRect: { width: 500 } } as unknown as ResizeObserverEntry],
-      observer as never,
-    );
-    expect(figure.querySelector("svg")).toBe(before);
-    observer.callback(
-      [{ target: figure, contentRect: { width: 640 } } as unknown as ResizeObserverEntry],
-      observer as never,
-    );
-    expect(figure.querySelector("svg")).not.toBe(before);
+    const plot = el("rankings-plot");
+    const resize = (width: number): void =>
+      observer.callback(
+        [{ target: plot, contentRect: { width } } as unknown as ResizeObserverEntry],
+        observer as never,
+      );
+    resize(500);
+    const before = plotCount(plot);
+    resize(500);
+    resize(0);
+    expect(plotCount(plot)).toBe(before);
+    resize(640);
+    expect(plotCount(plot)).toBe(before + 1);
   });
 
-  it("goes back to the loading card to change the source, and loads again", async () => {
-    el("change-source-btn").click();
-    expect(el("dashboard").hidden).toBe(true);
-    expect(el("load-card").hidden).toBe(false);
-    expect(el("retry-load-btn").textContent).toBe("Download the latest results");
-    el("retry-load-btn").click();
-    await dashboardShown();
+  it("says so in place of a figure that cannot be drawn", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(Plotly.react).mockImplementationOnce(() => {
+      throw new Error("no room");
+    });
+    select("incremental-scale", "linear");
+    expect(el("incremental-note").textContent).toBe("This figure could not be drawn: no room");
+    expect(Plotly.purge).toHaveBeenCalledWith(el("incremental-plot"));
+    error.mockRestore();
   });
 
-  it("flips the theme from the header toggle and remembers the choice", () => {
+  it("downloads the results again in place from the refresh button", async () => {
+    const button = el<HTMLButtonElement>("refresh-btn");
+    button.click();
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(fetched.calls.at(-1)?.init?.cache).toBe("no-cache");
+    expect(el("load-card").hidden).toBe(true);
+    expect(el("summary-note").hidden).toBe(true);
+
+    vi.stubGlobal("fetch", routeFetch([]));
+    button.click();
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(el("summary-note").textContent).toBe(
+      "The results could not be refreshed: The results server could not be reached. Check the connection and try again.",
+    );
+    vi.stubGlobal(
+      "fetch",
+      routeFetch([
+        { match: RESULTS_BUNDLE_URL, respond: () => new Response("{}", { status: 503, statusText: "Busy" }) },
+      ]),
+    );
+    button.click();
+    await vi.waitFor(() => expect(el("summary-note").textContent).toContain("answered 503 Busy"));
+    vi.stubGlobal("fetch", fetched);
+  });
+
+  it("redraws the figures in the new theme's colors", async () => {
+    const before = plotCount(el("traffic-plot"));
     el("theme-toggle").click();
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem(THEME_KEY)).toBe("dark");
+    await vi.waitFor(() => expect(plotCount(el("traffic-plot"))).toBe(before + 1));
     el("theme-toggle").click();
     expect(document.documentElement.dataset.theme).toBe("light");
   });

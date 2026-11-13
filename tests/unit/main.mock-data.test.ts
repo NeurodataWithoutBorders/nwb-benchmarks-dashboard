@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // Boots under `?test&mock_data`: the synthesized bundle stands in for the published one at the
 // fetch, and, holding none of the paper's machine, the dashboard starts from every result.
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { bootMain, dashboardShown, el } from "./helpers/mainHarness";
+import { lastPlot } from "./helpers/plotly";
 
 let fetched: { calls: unknown[] } | null = null;
 
@@ -17,17 +18,22 @@ describe("main.ts boot with ?test&mock_data", () => {
     expect(fetched?.calls).toEqual([]);
   });
 
-  it("names the synthesized source and starts from all results", () => {
-    expect(el("data-summary").textContent).toContain("synthesized by the mock_data test injection");
-    const pressed = document.querySelector(".preset-button[aria-pressed='true']");
-    expect(pressed?.textContent).toBe("All results");
+  it("starts from all results, outside the manuscript view", () => {
+    expect(el("search-status").textContent).toMatch(/^Showing all \d+ results files\./);
+    expect(el("manuscript-toggle").getAttribute("aria-pressed")).toBe("false");
     expect(window.location.search).toBe("?test&mock_data");
   });
 
   it("fills every figure", () => {
     for (const id of ["rankings", "traffic", "versions", "incremental"]) {
-      expect(el(`${id}-figure`).querySelectorAll("svg.chart").length).toBeGreaterThan(0);
+      expect(lastPlot(el(`${id}-plot`))?.data.length).toBeGreaterThan(0);
       expect(el(`${id}-note`).hidden).toBe(true);
     }
+  });
+
+  it("keeps the mock data on a refresh", async () => {
+    el("refresh-btn").click();
+    await vi.waitFor(() => expect(el<HTMLButtonElement>("refresh-btn").disabled).toBe(false));
+    expect(el("summary-note").hidden).toBe(true);
   });
 });

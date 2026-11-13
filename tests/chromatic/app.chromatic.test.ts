@@ -21,12 +21,22 @@ forEachViewport(test, "Main page - dashboard", async ({ page }) => {
   // The synthesized bundle is built from fixed formulas and a seeded generator (see
   // src/lib/mockBundle.ts), so the figures are the same on every run.
   await page.goto("/?test&mock_data");
-  await expect(page.locator("#incremental-figure svg.chart")).toHaveCount(3);
+  for (const id of ["rankings", "traffic", "versions", "incremental"]) {
+    await expect(page.locator(`#${id}-plot.js-plotly-plot .main-svg`).first()).toBeVisible();
+  }
   await expectNoHorizontalOverflow(page);
 });
 
 forEachViewport(test, "Main page - dashboard, nothing selected", async ({ page }) => {
-  await page.goto("/?test&mock_data&machine=nobody");
+  await page.goto("/?test&mock_data&q=machine%3Anobody");
   await expect(page.locator("#rankings-note")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+forEachViewport(test, "Main page - search suggestions", async ({ page }) => {
+  await page.goto("/?test&mock_data");
+  await page.locator("#search-input").click();
+  await page.locator("#search-input").pressSequentially("environment:");
+  await expect(page.locator("#search-suggestions [role=option]").first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

@@ -11,7 +11,10 @@ test.describe("NWB Benchmarks Dashboard shell", () => {
     await page.goto("/?test&freeze_loading");
     await expect(page).toHaveTitle("NWB Benchmarks Dashboard");
     await expect(page.locator("h1")).toHaveText("NWB Benchmarks Dashboard");
-    await expect(page.locator(".site-subtitle")).toContainText("the paper's figures");
+    await expect(page.locator(".site-subtitle")).toHaveText(
+      "The NWB Benchmarks results for all machines, environments, and time ranges",
+    );
+    await expect(page.locator("#manuscript-toggle")).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator(".header-logo")).toBeVisible();
     await expect(page.locator(".header-logo-link")).toHaveAttribute(
       "href",
@@ -22,7 +25,7 @@ test.describe("NWB Benchmarks Dashboard shell", () => {
     await expect(versionLink).toHaveAttribute("href", "https://github.com/brain-bbqs/nwb-benchmarks-dashboard");
     await expect(page.locator('a.footer-brand-link[href="https://centerforopenneuroscience.org"]')).toBeVisible();
     await expect(page.locator("#load-status")).toHaveText("Downloading the latest results… 793 KB of 1.9 MB");
-    await expect(page.locator("#dropzone")).toBeVisible();
+    await expect(page.locator("#retry-load-btn")).toBeHidden();
     await expect(page.locator("#dashboard")).toBeHidden();
   });
 

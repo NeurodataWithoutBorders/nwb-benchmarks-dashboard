@@ -1,5 +1,5 @@
 // The loading card: what is being fetched and how far along it is, why it failed, and the way to
-// try again or drop a copy in instead.
+// try again.
 
 import { humanSize } from "@brain-bbqs/utils";
 import type { LoadProgress } from "../lib/bundle";
@@ -9,7 +9,6 @@ export interface Loader {
   downloading: (progress: LoadProgress | null) => void;
   reading: (what: string) => void;
   failed: (message: string) => void;
-  idle: (message: string) => void;
 }
 
 export function createLoader(els: AppElements): Loader {
@@ -44,13 +43,6 @@ export function createLoader(els: AppElements): Loader {
       els.loadError.textContent = message;
       els.loadError.hidden = false;
       els.retryLoadBtn.textContent = "Try again";
-      els.retryLoadBtn.hidden = false;
-      setProgress(null);
-    },
-    idle(message) {
-      clearError();
-      els.loadStatus.textContent = message;
-      els.retryLoadBtn.textContent = "Download the latest results";
       els.retryLoadBtn.hidden = false;
       setProgress(null);
     },

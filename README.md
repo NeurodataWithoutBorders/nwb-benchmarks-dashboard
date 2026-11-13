@@ -12,7 +12,7 @@
   </p>
 </p>
 
-In-browser figures from the [NWB Benchmarks](https://github.com/NeurodataWithoutBorders/nwb-benchmarks) results: the paper's figures, for any machine, software environment or time range.
+In-browser figures of the [NWB Benchmarks](https://github.com/NeurodataWithoutBorders/nwb-benchmarks) results for all machines, environments, and time ranges, with a view that reproduces the manuscript's figures.
 
 ---
 

@@ -28,6 +28,7 @@
     "@playwright/test": "^1.48.0",
     "@storybook/html-vite": "^10.5.3",
     "@types/node": "^22.9.0",
+    "@types/plotly.js": "^3.0.15",
     "@vitest/coverage-v8": "^5.0.0",
     "chromatic": "^18.0.1",
     "eslint": "^9.39.5",
@@ -41,6 +42,7 @@
   },
   "dependencies": {
     "@brain-bbqs/ui": "^0.3.0",
-    "@brain-bbqs/utils": "^0.2.0"
+    "@brain-bbqs/utils": "^0.2.0",
+    "plotly.js-cartesian-dist-min": "^4.3.0"
   }
 }

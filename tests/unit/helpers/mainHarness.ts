@@ -4,7 +4,7 @@
 // import (one file per boot scenario, e.g. main.smoke.test.ts and main.mock-data.test.ts).
 // The import stays here, in the app's own code, so Vitest transforms it and a test file's
 // `vi.mock` calls apply to what main.ts imports.
-import { createMainHarness, pickFiles, routeFetch, type FetchRouter } from "@brain-bbqs/test-utils/vitest";
+import { createMainHarness, routeFetch, type FetchRouter } from "@brain-bbqs/test-utils/vitest";
 import { vi } from "vitest";
 import { RESULTS_BUNDLE_URL } from "../../../src/lib/bundle";
 import { readParityBundleBytes } from "./parity";
@@ -14,9 +14,6 @@ export const { bootMain } = createMainHarness({
   observers: ["ResizeObserver"],
 });
 export { el } from "@brain-bbqs/test-utils/vitest";
-
-/** Picks `file` through the hidden file input, the way the browse button does. */
-export const pickFile = (file: File): void => pickFiles("file-input", [file]);
 
 /** A fetch that serves the parity fixture as the published bundle, the way GitHub serves it. */
 export function publishedBundleFetch(): FetchRouter {
@@ -29,14 +26,16 @@ export function publishedBundleFetch(): FetchRouter {
   ]);
 }
 
-/** The parity fixture as a file a reader drops in. */
-export function bundleFile(name = "bundle.json.gz"): File {
-  return new File([readParityBundleBytes() as BlobPart], name, { type: "application/gzip" });
-}
-
 /** Waits until the dashboard has replaced the loading card. */
 export async function dashboardShown(): Promise<void> {
   await vi.waitFor(() => {
     if ((document.getElementById("dashboard") as HTMLElement).hidden) throw new Error("still loading");
   });
+}
+
+/** Applies a search at once, the way pressing Enter in the search box does. */
+export function search(query: string): void {
+  const input = document.getElementById("search-input") as HTMLInputElement;
+  input.value = query;
+  (document.getElementById("search-form") as HTMLFormElement).dispatchEvent(new Event("submit", { cancelable: true }));
 }

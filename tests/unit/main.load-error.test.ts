@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-// Boots under `?test&load_error`: the download fails, the card says why and offers a retry, and a
-// bundle dropped in instead loads in its place.
+// Boots under `?test&load_error`: the download fails, and the card says why and offers a retry.
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { INJECTED_LOAD_ERROR } from "../../src/lib/testInjection";
-import { bootMain, bundleFile, dashboardShown, el, pickFile } from "./helpers/mainHarness";
+import { bootMain, el } from "./helpers/mainHarness";
 
 beforeAll(async () => {
   await bootMain("?test&load_error");
@@ -20,17 +19,8 @@ describe("main.ts boot with ?test&load_error", () => {
 
   it("fails the same way on a retry", async () => {
     el("retry-load-btn").click();
+    expect(el("load-error").hidden).toBe(true);
     await vi.waitFor(() => expect(el("load-error").hidden).toBe(false));
-  });
-
-  it("refuses a dropped file that is not a bundle", async () => {
-    pickFile(new File(["not json"], "notes.txt", { type: "text/plain" }));
-    await vi.waitFor(() => expect(el("load-error").textContent).toBe("The bundle is not valid JSON."));
-  });
-
-  it("loads a dropped bundle", async () => {
-    pickFile(bundleFile());
-    await dashboardShown();
-    expect(el("data-summary").textContent).toContain("from bundle.json.gz");
+    expect(el("dashboard").hidden).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 // Which runs the figures draw from. nwb-benchmarks' `generate_figures` fixes one selection (the
 // LBNL Mac, results since 2025-11-01, one or all of the paper's environments); here every piece of
-// run metadata is a facet the reader can narrow, and the paper's selections are presets.
+// run metadata is a facet the search (search.ts) can narrow, and the paper's selections are the
+// manuscript view.
 
 import type { Modality } from "./benchmarkNames";
 import {
@@ -15,6 +16,7 @@ import { environmentLabel, machineLabel, type Database, type Run, type Sample } 
 import { compareVersions } from "./versions";
 
 export interface FacetDefinition {
+  /** The facet's search key, as in `machine:` or `pynwb:`. */
   key: string;
   label: string;
   valueOf: (run: Run, db: Database) => string;
@@ -45,7 +47,7 @@ export const FACETS: FacetDefinition[] = [
     compare: (a, b, db) => machineLabel(db.machines.get(a), a).localeCompare(machineLabel(db.machines.get(b), b)),
   },
   {
-    key: "system",
+    key: "os",
     label: "Operating system",
     valueOf: (run, db) => db.machines.get(run.machineId)?.system ?? UNKNOWN,
     labelOf: asIs,
@@ -73,8 +75,8 @@ export const FACETS: FacetDefinition[] = [
     compare: byVersion,
   },
   ...PACKAGES_OF_INTEREST.map((name): FacetDefinition => ({
-    key: `pkg-${name}`,
-    label: name,
+    key: name,
+    label: `${name} version`,
     valueOf: (run, db) => {
       const environment = db.environments.get(run.environmentId);
       if (!environment) return UNKNOWN;
@@ -91,18 +93,15 @@ export const FACETS: FacetDefinition[] = [
     compare: byText,
   },
   {
-    key: "results-version",
-    label: "Results format",
+    key: "format",
+    label: "Results format version",
     valueOf: (run) => run.databaseVersion,
     labelOf: asIs,
     compare: byVersion,
   },
 ];
 
-const FACET_BY_KEY = new Map(FACETS.map((facet) => [facet.key, facet]));
-
-/** The facets every run is described by, in the order the filters list them. */
-export const PACKAGE_FACET_KEYS = PACKAGES_OF_INTEREST.map((name) => `pkg-${name}`);
+export const FACET_BY_KEY = new Map(FACETS.map((facet) => [facet.key, facet]));
 
 export interface FilterState {
   /** Inclusive, `YYYY-MM-DD`, or null for no bound. */
@@ -112,9 +111,11 @@ export interface FilterState {
   applyExclusions: boolean;
   /** The values each facet is narrowed to; a facet that is absent allows every value. */
   selected: Record<string, string[]>;
+  /** Free text, every piece of which has to appear in one of a run's facet values. */
+  text: string[];
 }
 
-export const ALL_DATA: FilterState = { from: null, to: null, applyExclusions: true, selected: {} };
+export const ALL_DATA: FilterState = { from: null, to: null, applyExclusions: true, selected: {}, text: [] };
 
 /** The two selections `nwb_benchmarks generate_figures` draws the manuscript's figures from. */
 export type ManuscriptSelection = "reference" | "timepoints";
@@ -125,6 +126,7 @@ function paperSelection(environmentIds: string[]): FilterState {
     to: null,
     applyExclusions: true,
     selected: { machine: [...LBL_MAC_MACHINE_IDS], environment: environmentIds },
+    text: [],
   };
 }
 
@@ -147,80 +149,40 @@ export const MANUSCRIPT_FIGURE_SELECTIONS: Record<FigureId, ManuscriptSelection>
 
 export const MANUSCRIPT_DESCRIPTION =
   `The manuscript's selections: the LBNL Mac, results since ${PAPER_EXCLUDE_OLDER}, ` +
-  `the ${PAPER_REFERENCE_TIMEPOINT} environment for Figures 3 and 5, ` +
-  `and the ${Object.keys(ENVIRONMENT_TIMEPOINTS).length} dated environments for Figure 4b and incremental slicing.`;
+  `the ${PAPER_REFERENCE_TIMEPOINT} environment for the method rankings and network traffic, ` +
+  `and the ${Object.keys(ENVIRONMENT_TIMEPOINTS).length} dated environments for the comparison across versions ` +
+  `and incremental slicing.`;
 
-export function cloneState(state: FilterState): FilterState {
-  return {
-    ...state,
-    selected: Object.fromEntries(Object.entries(state.selected).map(([key, values]) => [key, [...values]])),
-  };
+/** Lowercases, strips accents and collapses whitespace, so text compares as a reader would. */
+export function normalize(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-/** Every result: the dashboard's starting point. */
-export function defaultState(): FilterState {
-  return cloneState(ALL_DATA);
+const runTexts = new WeakMap<Run, string>();
+
+/** Every facet value of a run, labels and raw values both, for free-text search. */
+function runText(run: Run, db: Database): string {
+  let text = runTexts.get(run);
+  if (text === undefined) {
+    text = normalize(
+      FACETS.map((facet) => {
+        const value = facet.valueOf(run, db);
+        return `${facet.labelOf(value, db)} ${value}`;
+      }).join(" "),
+    );
+    runTexts.set(run, text);
+  }
+  return text;
 }
 
-/** Whether two states select the same runs. */
-export function sameState(a: FilterState, b: FilterState): boolean {
-  const normalize = (state: FilterState): string =>
-    JSON.stringify([
-      state.from,
-      state.to,
-      state.applyExclusions,
-      Object.entries(state.selected)
-        .map(([key, values]) => [key, [...values].sort()])
-        .sort(([x], [y]) => String(x).localeCompare(String(y))),
-    ]);
-  return normalize(a) === normalize(b);
-}
-
-function runPasses(run: Run, db: Database, state: FilterState, skipFacet: string | null): boolean {
+function runPasses(run: Run, db: Database, state: FilterState): boolean {
   if (state.from !== null && run.timestamp < `${state.from}-00-00-00`) return false;
   if (state.to !== null && run.timestamp > `${state.to}-23-59-59`) return false;
   for (const [key, values] of Object.entries(state.selected)) {
-    if (key === skipFacet) continue;
     const facet = FACET_BY_KEY.get(key);
     if (facet && !values.includes(facet.valueOf(run, db))) return false;
   }
-  return true;
-}
-
-export interface FacetOption {
-  value: string;
-  label: string;
-  /** Runs with this value that every other filter lets through. */
-  count: number;
-  selected: boolean;
-}
-
-/** Every facet's values, counted against the other filters (so a count is what picking it adds). */
-export function facetOptions(db: Database, state: FilterState): Map<string, FacetOption[]> {
-  const options = new Map<string, FacetOption[]>();
-  for (const facet of FACETS) {
-    const counts = new Map<string, number>();
-    for (const run of db.runs) {
-      const value = facet.valueOf(run, db);
-      if (!counts.has(value)) counts.set(value, 0);
-      if (runPasses(run, db, state, facet.key)) counts.set(value, (counts.get(value) ?? 0) + 1);
-    }
-    const selected = facet.key in state.selected ? state.selected[facet.key] : null;
-    // A value the state names but the data lacks still shows, so it can be unticked.
-    for (const value of selected ?? []) if (!counts.has(value)) counts.set(value, 0);
-    options.set(
-      facet.key,
-      [...counts.entries()]
-        .sort(([a], [b]) => facet.compare(a, b, db))
-        .map(([value, count]) => ({
-          value,
-          label: facet.labelOf(value, db),
-          count,
-          selected: selected ? selected.includes(value) : true,
-        })),
-    );
-  }
-  return options;
+  return state.text.every((text) => runText(run, db).includes(text));
 }
 
 export interface Row {
@@ -248,7 +210,7 @@ export class Dataset {
     readonly db: Database,
     readonly state: FilterState,
   ) {
-    this.runs = db.runs.filter((run) => runPasses(run, db, state, null));
+    this.runs = db.runs.filter((run) => runPasses(run, db, state));
     const kept = new Set(this.runs);
     let excluded = 0;
     this.samples = db.samples.filter((sample) => {
@@ -328,10 +290,10 @@ export function applyFilters(db: Database, state: FilterState): Dataset {
 }
 
 // ----------------------------------------------------------------------------------------------
-// The URL form of a filter state, so a view can be linked to: `?from=2025-11-01&machine=<id>&...`.
+// The URL: `?q=<search>` for the search (search.ts), or `?manuscript` for the manuscript view.
 // ----------------------------------------------------------------------------------------------
 
-const RESERVED_PARAMS = new Set(["from", "to", "exclusions"]);
+export const QUERY_PARAM = "q";
 
 /** `?manuscript`: the view that reproduces the manuscript's figures, each from its own selection. */
 export const MANUSCRIPT_PARAM = "manuscript";
@@ -340,58 +302,51 @@ export function isManuscriptSearch(search: string): boolean {
   return new URLSearchParams(search).has(MANUSCRIPT_PARAM);
 }
 
-/** The URL of the manuscript view: `?manuscript`, in place of any filters. */
-export function manuscriptSearch(search: string): string {
-  const params = new URLSearchParams(search);
-  for (const key of [...RESERVED_PARAMS, ...FACETS.map((facet) => facet.key)]) params.delete(key);
-  params.set(MANUSCRIPT_PARAM, "");
-  return `?${params.toString().replace(/=(?=&|$)/g, "")}`;
-}
-
-/** Writes the state into a copy of `search`, leaving params it does not own (such as `test`) alone. */
-export function stateToSearch(state: FilterState, search: string): string {
-  const params = new URLSearchParams(search);
-  for (const key of [MANUSCRIPT_PARAM, ...RESERVED_PARAMS, ...FACETS.map((facet) => facet.key)]) params.delete(key);
-  if (state.from) params.set("from", state.from);
-  if (state.to) params.set("to", state.to);
-  if (!state.applyExclusions) params.set("exclusions", "off");
-  for (const facet of FACETS) {
-    for (const value of state.selected[facet.key] ?? []) params.append(facet.key, value);
-  }
+function writeParams(params: URLSearchParams): string {
   const text = params.toString().replace(/=(?=&|$)/g, "");
   return text ? `?${text}` : "";
 }
 
-/** Reads a state out of the URL, or null when the URL names no filter at all. */
-export function stateFromSearch(search: string): FilterState | null {
+/** The URL of the manuscript view: `?manuscript`, in place of any search. */
+export function manuscriptSearch(search: string): string {
   const params = new URLSearchParams(search);
-  const owned = [...RESERVED_PARAMS, ...FACETS.map((facet) => facet.key)];
-  if (!owned.some((key) => params.has(key))) return null;
-  const date = (value: string | null): string | null => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
-  const selected: Record<string, string[]> = {};
-  for (const facet of FACETS) {
-    const values = params.getAll(facet.key).filter((value) => value !== "");
-    if (values.length) selected[facet.key] = values;
-  }
-  return {
-    from: date(params.get("from")),
-    to: date(params.get("to")),
-    applyExclusions: params.get("exclusions") !== "off",
-    selected,
-  };
+  params.delete(QUERY_PARAM);
+  params.set(MANUSCRIPT_PARAM, "");
+  return writeParams(params);
 }
 
-/** The one-line description of a dataset the filters card shows. */
-export function describeDataset(dataset: Dataset): string {
-  const machines = new Set(dataset.runs.map((run) => run.machineId)).size;
-  const environments = dataset.environmentIds().length;
-  const plural = (count: number, word: string): string =>
-    `${count.toLocaleString("en-US")} ${word}${count === 1 ? "" : "s"}`;
-  const parts = [
-    plural(dataset.runs.length, "results file"),
-    plural(machines, "machine"),
-    plural(environments, "environment"),
-  ];
-  const excluded = dataset.excluded ? `, ${plural(dataset.excluded, "curated exclusion")} applied` : "";
-  return `${parts.join(" · ")}${excluded}`;
+/** Writes the search into a copy of `search`, leaving the manuscript view and keeping params it does
+ * not own (such as `test`). */
+export function querySearch(query: string, search: string): string {
+  const params = new URLSearchParams(search);
+  params.delete(MANUSCRIPT_PARAM);
+  if (query.trim()) params.set(QUERY_PARAM, query.trim());
+  else params.delete(QUERY_PARAM);
+  return writeParams(params);
+}
+
+/** The search the URL holds, or an empty one. */
+export function queryFromSearch(search: string): string {
+  return new URLSearchParams(search).get(QUERY_PARAM) ?? "";
+}
+
+export interface Totals {
+  runs: number;
+  machines: number;
+  environments: number;
+  benchmarks: number;
+  cases: number;
+  excluded: number;
+}
+
+/** What a selection holds, for the summary's totals. */
+export function datasetTotals(dataset: Dataset): Totals {
+  return {
+    runs: dataset.runs.length,
+    machines: new Set(dataset.runs.map((run) => run.machineId)).size,
+    environments: dataset.environmentIds().length,
+    benchmarks: new Set(dataset.samples.map((sample) => sample.benchmarkName)).size,
+    cases: dataset.samples.length,
+    excluded: dataset.excluded,
+  };
 }

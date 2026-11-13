@@ -17,12 +17,17 @@ export class BundleError extends Error {
   override name = "BundleError";
 }
 
-/** Downloads the bundle's bytes, reporting progress as they arrive. */
+/** Downloads the bundle's bytes, reporting progress as they arrive. `fresh` skips the browser's cache,
+ * for a refresh. */
 export async function fetchBundleBytes(
   url: string,
-  { signal, onProgress }: { signal?: AbortSignal; onProgress?: (progress: LoadProgress) => void } = {},
+  {
+    signal,
+    onProgress,
+    fresh = false,
+  }: { signal?: AbortSignal; onProgress?: (progress: LoadProgress) => void; fresh?: boolean } = {},
 ): Promise<Uint8Array> {
-  const response = await fetch(url, { signal });
+  const response = await fetch(url, fresh ? { signal, cache: "no-cache" } : { signal });
   if (!response.ok)
     throw new BundleError(`The results server answered ${response.status} ${response.statusText}.`.trim());
   const length = Number(response.headers.get("content-length"));

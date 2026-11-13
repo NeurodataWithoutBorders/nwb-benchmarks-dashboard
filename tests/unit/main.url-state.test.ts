@@ -1,18 +1,19 @@
 // @vitest-environment jsdom
-// Boots with filters in the URL, as a shared link carries them: they win over the default
-// selection, here narrowing to a machine with no results so every card says so.
+// Boots with a search in the URL, as a shared link carries it: it wins over the default selection,
+// here narrowing to a machine with no results so every card says so.
 import { beforeAll, describe, expect, it } from "vitest";
 import { bootMain, dashboardShown, el } from "./helpers/mainHarness";
 
 beforeAll(async () => {
-  await bootMain("?test&mock_data&machine=nobody&exclusions=off");
+  await bootMain("?test&mock_data&q=machine%3Anobody+exclusions%3Aoff");
   await dashboardShown();
 });
 
 describe("main.ts boot with filters in the URL", () => {
-  it("applies them", () => {
-    expect(el<HTMLInputElement>("filter-exclusions").checked).toBe(false);
-    expect(el("filter-summary").textContent).toBe("0 results files · 0 machines · 0 environments");
+  it("shows the search and applies it", () => {
+    expect(el<HTMLInputElement>("search-input").value).toBe("machine:nobody exclusions:off");
+    expect(el("search-status").textContent).toMatch(/^Showing 0 of \d+ results files\. No machine matches "nobody"\.$/);
+    expect(el("summary-totals").textContent).toContain("Results files0");
   });
 
   it("explains every empty figure instead of drawing it", () => {
@@ -21,6 +22,5 @@ describe("main.ts boot with filters in the URL", () => {
     expect(el("versions-note").textContent).toContain("No PyNWB timing results");
     expect(el("incremental-note").textContent).toContain("No incremental slicing results");
     expect(el<HTMLButtonElement>("rankings-csv-btn").disabled).toBe(true);
-    expect(el("versions-legend").hidden).toBe(true);
   });
 });

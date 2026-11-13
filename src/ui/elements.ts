@@ -13,11 +13,12 @@ function figureCard(prefix: string) {
   return {
     card: required<HTMLElement>(`${prefix}-card`),
     note: required<HTMLParagraphElement>(`${prefix}-note`),
-    figure: required<HTMLDivElement>(`${prefix}-figure`),
-    legend: required<HTMLUListElement>(`${prefix}-legend`),
-    table: required<HTMLDetailsElement>(`${prefix}-table`),
+    viewPlot: required<HTMLInputElement>(`${prefix}-view-plot`),
+    viewTable: required<HTMLInputElement>(`${prefix}-view-table`),
+    plot: required<HTMLDivElement>(`${prefix}-plot`),
+    tableView: required<HTMLDivElement>(`${prefix}-table-view`),
+    table: required<HTMLDivElement>(`${prefix}-table`),
     csvBtn: required<HTMLButtonElement>(`${prefix}-csv-btn`),
-    svgBtn: required<HTMLButtonElement>(`${prefix}-svg-btn`),
   };
 }
 
@@ -25,29 +26,27 @@ export type FigureCardElements = ReturnType<typeof figureCard>;
 
 export function getElements() {
   return {
+    manuscriptToggle: required<HTMLButtonElement>("manuscript-toggle"),
+
     loadCard: required<HTMLElement>("load-card"),
     loadStatus: required<HTMLParagraphElement>("load-status"),
     loadProgress: required<HTMLDivElement>("load-progress"),
     loadProgressFill: required<HTMLDivElement>("load-progress-fill"),
     loadError: required<HTMLParagraphElement>("load-error"),
     retryLoadBtn: required<HTMLButtonElement>("retry-load-btn"),
-    dropzone: required<HTMLDivElement>("dropzone"),
-    dropzoneReject: required<HTMLParagraphElement>("dropzone-reject"),
-    browseFileBtn: required<HTMLButtonElement>("browse-file-btn"),
-    fileInput: required<HTMLInputElement>("file-input"),
 
     dashboard: required<HTMLDivElement>("dashboard"),
-    dataSummary: required<HTMLParagraphElement>("data-summary"),
-    changeSourceBtn: required<HTMLButtonElement>("change-source-btn"),
-
-    filters: {
-      presetButtons: required<HTMLDivElement>("preset-buttons"),
-      from: required<HTMLInputElement>("filter-from"),
-      to: required<HTMLInputElement>("filter-to"),
-      exclusions: required<HTMLInputElement>("filter-exclusions"),
-      exclusionsLabel: required<HTMLSpanElement>("filter-exclusions-label"),
-      facetList: required<HTMLDivElement>("facet-list"),
-      summary: required<HTMLParagraphElement>("filter-summary"),
+    summary: {
+      totals: required<HTMLTableElement>("summary-totals"),
+      note: required<HTMLParagraphElement>("summary-note"),
+      updated: required<HTMLParagraphElement>("summary-updated"),
+      refreshBtn: required<HTMLButtonElement>("refresh-btn"),
+    },
+    search: {
+      form: required<HTMLFormElement>("search-form"),
+      input: required<HTMLInputElement>("search-input"),
+      list: required<HTMLUListElement>("search-suggestions"),
+      status: required<HTMLParagraphElement>("search-status"),
     },
 
     rankings: {
@@ -68,7 +67,6 @@ export function getElements() {
       ...figureCard("incremental"),
       scale: required<HTMLSelectElement>("incremental-scale"),
     },
-    tooltip: required<HTMLDivElement>("chart-tooltip"),
   };
 }
 

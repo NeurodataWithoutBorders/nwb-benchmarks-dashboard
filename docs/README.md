@@ -6,7 +6,7 @@
 | ---------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `?test&mock_data`      | The dashboard on a synthesized bundle: one fake machine, two fake environments, every figure full | [Open](https://brain-bbqs.github.io/nwb-benchmarks-dashboard/?test&mock_data)      |
 | `?test&freeze_loading` | The loading card held part-way through a download (793 KB of 1.9 MB)                              | [Open](https://brain-bbqs.github.io/nwb-benchmarks-dashboard/?test&freeze_loading) |
-| `?test&load_error`     | The loading card after a failed download, with its retry button and the dropzone                  | [Open](https://brain-bbqs.github.io/nwb-benchmarks-dashboard/?test&load_error)     |
+| `?test&load_error`     | The loading card after a failed download, with its retry button                                   | [Open](https://brain-bbqs.github.io/nwb-benchmarks-dashboard/?test&load_error)     |
 
 `?test` alone (without one of the above) is a no-op that never changes anything by itself.
 
@@ -15,15 +15,24 @@ Nothing is written to `localStorage`, so all of the above are safe to try at any
 
 `mock_data` builds its bundle in `src/lib/mockBundle.ts` from fixed formulas and a seeded generator and hands it to the same reading, filtering and drawing code the published bundle goes through, at the one point main.ts would otherwise have fetched it.
 The Chromatic dashboard snapshots use it to capture every figure deterministically.
-Filters in the URL combine with it (`?test&mock_data&machine=nobody` shows every card's empty state).
+A search in the URL combines with it (`?test&mock_data&q=machine:nobody` shows every card's empty state).
 
 Add a row here for every injection the app grows, and read the `visual-snapshots` skill under `.claude/skills/` before adding one.
 
+## The search
+
+The search box takes free text and `key:value` filters, after the record search on [CodyCBakerPhD/website](https://github.com/CodyCBakerPhD/website), and suggests keys and values as you type.
+The keys are the run metadata (`machine:`, `os:`, `cpu:`, `environment:`, `python:`, one per package of interest such as `pynwb:`, `commit:` and `format:`), plus `date:` (`date:2025-11`, or a range such as `date:>=2025-11-01`) and `exclusions:off`, which keeps the curated outlier samples.
+A value matches a facet's label anywhere in it, or the start of its ID, and values with spaces are quoted.
+Different keys must all match, and repeating a key allows any of its values.
+Free text has to appear in one of a run's values.
+The language is `src/lib/search.ts`; the search is kept in the URL as `?q=`.
+
 ## The manuscript view
 
-`?manuscript` is not a test injection but a view for people: it draws each figure from the selection nwb-benchmarks' `generate_figures` draws the manuscript's version from (`MANUSCRIPT_SELECTIONS` and `MANUSCRIPT_FIGURE_SELECTIONS` in `src/lib/filters.ts`).
-Figures 3 and 5 take the LBNL Mac's results since 2025-11-01 in the 2026-10-07 environment, and Figure 4b and the incremental slicing figure take the same machine's results in all the dated environments.
-Changing any filter leaves the view, starting from the reference selection.
+`?manuscript`, which the header's document button toggles, is not a test injection but a view for people: it draws each figure from the selection nwb-benchmarks' `generate_figures` draws the manuscript's version from (`MANUSCRIPT_SELECTIONS` and `MANUSCRIPT_FIGURE_SELECTIONS` in `src/lib/filters.ts`), and letters the panels as the manuscript does.
+The method rankings and network traffic take the LBNL Mac's results since 2025-11-01 in the 2026-10-07 environment, and the comparison across versions and the incremental slicing figure take the same machine's results in all the dated environments.
+Typing a search leaves the view.
 
 ## Parity with the Python figures
 

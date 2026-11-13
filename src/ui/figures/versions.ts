@@ -1,116 +1,121 @@
-// Draws the paper's Figure 4b: per-modality point plots of the mean runtime of each PyNWB method
-// across environments (or package versions), joined by lines, with 95 % bootstrap intervals.
+// The comparison across versions: per modality, the mean runtime of each PyNWB method across
+// environments (or package versions), joined by lines, with 95 % bootstrap intervals, as
+// nwb-benchmarks' `plot_performance_across_versions` draws it.
 
-import { svgText } from "@brain-bbqs/ui";
 import type { Column } from "../../lib/csv";
-import { formatG, formatSeconds, formatTick } from "../../lib/format";
+import { formatG, formatSeconds } from "../../lib/format";
 import type { PerformanceAcrossVersions, VersionPanel, VersionPoint } from "../../lib/figures/versions";
 import { methodColor, methodLabel, methodLineStyle, methodMarker } from "../../lib/methods";
-import { extent, niceDomain } from "../../lib/scale";
-import { emptyPanel, onHover, panelSlots, slotWidth, type LegendEntry, type Tooltip } from "../charts/chrome";
-import { createPanel, errorBar, hitTarget, line, marker } from "../charts/svg";
+import { axisNames, gridLayout, legendHeight } from "../charts/grid";
+import {
+  axis,
+  baseLayout,
+  hoverText,
+  panelLabels,
+  panelLetter,
+  plotText,
+  plotlyDash,
+  plotlySymbol,
+  type FigureOptions,
+  type FigureSpec,
+  type Trace,
+} from "../charts/plot";
 
 function panelTitle(panel: VersionPanel): string {
   if (panel.preloaded === null) return panel.modality;
   return `${panel.modality} · ${panel.preloaded ? "preloaded" : "not preloaded"}`;
 }
 
-function drawPanel(
-  slot: HTMLElement,
-  figure: PerformanceAcrossVersions,
-  panel: VersionPanel,
-  axisLabel: string,
-  tooltip: Tooltip,
-): void {
-  const values = panel.series.flatMap((series) =>
-    series.points.flatMap((point) => [point.summary.mean, ...(point.interval ?? [])]),
-  );
-  const range = extent(values, { pad: 0.08 });
-  if (!range) {
-    emptyPanel(slot, panelTitle(panel));
-    return;
-  }
-  const width = slotWidth(slot);
-  const groups = figure.groups;
-  const index = new Map(groups.map((group, position) => [group.key, position]));
-  const labels = groups.map((group) => group.label);
-  const longest = Math.max(...labels.map((label) => label.length));
-  // Long labels (package versions are short, environment labels are not) turn to fit.
-  const slanted = longest * 6.5 > (width - 80) / Math.max(1, groups.length);
-  // Room under the axis for the longest slanted label (35 degrees, about 6 px a character).
-  const slantRoom = slanted ? Math.ceil(longest * 6 * Math.sin((35 * Math.PI) / 180)) + 16 : 0;
-  const panelView = createPanel({
-    width,
-    height: Math.round(Math.min(380, Math.max(280, width * 0.7))) + slantRoom,
-    title: panelTitle(panel),
-    x: {
-      domain: [-0.5, groups.length - 0.5],
-      label: axisLabel,
-      ticks: groups.map((_group, position) => position),
-      format: (value) => (slanted ? "" : (labels[Math.round(value)] ?? "")),
+function pointHover(method: string, group: string, point: VersionPoint): string {
+  return hoverText(`${methodLabel(method)} · ${group}`, [
+    { label: `mean (n = ${point.summary.n})`, value: formatSeconds(point.summary.mean) },
+    {
+      label: "95% interval",
+      value: point.interval ? `${formatG(point.interval[0], 3)}–${formatG(point.interval[1], 3)} s` : "–",
     },
-    y: { domain: niceDomain(Math.max(0, range[0]), range[1], 4), label: "Time (s)", format: formatTick },
-    margin: slanted ? { bottom: 44 + slantRoom } : undefined,
-    description: `${panelTitle(panel)}: mean time per method across ${axisLabel.toLowerCase()}`,
-  });
-  if (slanted) {
-    groups.forEach((group, position) => {
-      const x = panelView.x(position);
-      const y = panelView.inner.bottom + 12;
-      panelView.overlay.append(
-        svgText("tick", { x, y, "text-anchor": "end", transform: `rotate(-35 ${x} ${y})` }, group.label),
-      );
-    });
-  }
-  for (const series of panel.series) {
-    const color = methodColor(series.method);
-    const position = (point: VersionPoint): number => panelView.x(index.get(point.group) ?? 0);
-    panelView.plot.append(
-      line(
-        series.points.map((point) => [position(point), panelView.y(point.summary.mean)]),
-        color,
-        methodLineStyle(series.method),
-      ),
-    );
-    for (const point of series.points) {
-      const x = position(point);
-      const y = panelView.y(point.summary.mean);
-      if (point.interval)
-        panelView.plot.append(errorBar(x, panelView.y(point.interval[0]), panelView.y(point.interval[1]), color));
-      panelView.plot.append(marker(methodMarker(series.method), x, y, color, 8));
-      const target = hitTarget(x, y);
-      panelView.overlay.append(target);
-      const group = groups.find((candidate) => candidate.key === point.group);
-      onHover(target, tooltip, `${methodLabel(series.method)} · ${group?.label ?? point.group}`, () => [
-        { label: `mean (n = ${point.summary.n})`, value: formatSeconds(point.summary.mean) },
-        {
-          label: "95% interval",
-          value: point.interval ? `${formatG(point.interval[0], 3)}–${formatG(point.interval[1], 3)} s` : "–",
-        },
-        { label: "median", value: formatSeconds(point.summary.median) },
-      ]);
-    }
-  }
-  slot.replaceChildren(panelView.svg);
+    { label: "median", value: formatSeconds(point.summary.median) },
+  ]);
 }
 
-export function renderVersions(
-  target: HTMLElement,
+export function versionsFigure(
   figure: PerformanceAcrossVersions,
   axisLabel: string,
-  tooltip: Tooltip,
-): void {
-  const slots = panelSlots(target, figure.panels.length, 300);
-  figure.panels.forEach((panel, position) => drawPanel(slots[position], figure, panel, axisLabel, tooltip));
-}
-
-export function versionsLegend(figure: PerformanceAcrossVersions): LegendEntry[] {
-  return figure.methods.map((method) => ({
-    label: methodLabel(method),
-    color: methodColor(method),
-    lineStyle: methodLineStyle(method),
-    marker: methodMarker(method),
-  }));
+  { width, theme, letters }: FigureOptions,
+): FigureSpec {
+  const labels = new Map(figure.groups.map((group) => [group.key, plotText(group.label)]));
+  const categories = figure.groups.map((group) => labels.get(group.key) as string);
+  const count = figure.panels.length;
+  const columns = Math.max(1, Math.min(count, Math.floor(width / 320)));
+  const longest = Math.max(...figure.groups.map((group) => group.label.length));
+  // Long labels (environment labels; package versions are short) turn to fit.
+  const slanted = longest * 6.5 > (width / columns - 90) / Math.max(1, figure.groups.length);
+  const padding = {
+    top: 32,
+    right: 14,
+    bottom: 50 + (slanted ? Math.ceil(longest * 6 * Math.sin((35 * Math.PI) / 180)) : 0),
+    left: 60,
+  };
+  const plotWidth = width / columns - padding.left - padding.right;
+  const grid = gridLayout({
+    width,
+    panelHeights: figure.panels.map(() => Math.round(Math.min(320, Math.max(220, plotWidth * 0.62)))),
+    minPanelWidth: 320,
+    padding,
+    bottom: legendHeight(figure.methods.length, width),
+  });
+  const layout = baseLayout(theme, grid, true);
+  const annotations = layout.annotations as Record<string, unknown>[];
+  const shown = new Set<string>();
+  const data: Trace[] = [];
+  figure.panels.forEach((panel, index) => {
+    const names = axisNames(index);
+    const domain = grid.domains[index];
+    layout[names.xaxis] = axis(theme, domain.x, names.y, axisLabel, {
+      type: "category",
+      categoryorder: "array",
+      categoryarray: categories,
+      tickangle: slanted ? -35 : 0,
+      showgrid: false,
+    });
+    layout[names.yaxis] = axis(theme, domain.y, names.x, "Time (s)", { rangemode: "tozero" });
+    annotations.push(...panelLabels(theme, grid, domain, panelTitle(panel), panelLetter(letters, index), padding));
+    for (const series of panel.series) {
+      const label = methodLabel(series.method);
+      const color = theme.color(methodColor(series.method));
+      data.push({
+        type: "scatter",
+        mode: "lines+markers",
+        xaxis: names.x,
+        yaxis: names.y,
+        x: series.points.map((point) => labels.get(point.group) ?? point.group),
+        y: series.points.map((point) => point.summary.mean),
+        error_y: {
+          type: "data",
+          symmetric: false,
+          array: series.points.map((point) => (point.interval ? point.interval[1] - point.summary.mean : 0)),
+          arrayminus: series.points.map((point) => (point.interval ? point.summary.mean - point.interval[0] : 0)),
+          color,
+          thickness: 1.2,
+          width: 3,
+        },
+        line: { color, dash: plotlyDash(methodLineStyle(series.method)), width: 2 },
+        marker: { color, symbol: plotlySymbol(methodMarker(series.method)), size: 8 },
+        name: label,
+        legendgroup: label,
+        showlegend: !shown.has(label),
+        customdata: series.points.map((point) =>
+          pointHover(
+            series.method,
+            figure.groups.find((group) => group.key === point.group)?.label ?? point.group,
+            point,
+          ),
+        ),
+        hovertemplate: "%{customdata}<extra></extra>",
+      });
+      shown.add(label);
+    }
+  });
+  return { data, layout };
 }
 
 export interface VersionsRow {

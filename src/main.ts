@@ -1,12 +1,11 @@
 import "./style.css";
 import { initThemeToggle, renderVersion } from "@brain-bbqs/ui";
 import { BundleError, RESULTS_BUNDLE_URL, decodeBundle, fetchBundleBytes } from "./lib/bundle";
-import { readDatabase, type Bundle } from "./lib/database";
+import { readDatabase, type Bundle, type Database } from "./lib/database";
 import { synthesizeMockBundle } from "./lib/mockBundle";
 import { THEME_KEY } from "./lib/settings";
 import { FROZEN_PROGRESS, INJECTED_LOAD_ERROR, readTestInjection } from "./lib/testInjection";
-import { PUBLISHED_SOURCE, createDashboard } from "./ui/dashboard";
-import { initDropzone, readFileBytes } from "./ui/dropzone";
+import { createDashboard } from "./ui/dashboard";
 import { getElements, getShell } from "./ui/elements";
 import { createLoader } from "./ui/loader";
 
@@ -25,12 +24,11 @@ renderVersion(shell.versionIndicator, __APP_VERSION__);
 initThemeToggle(shell.themeToggle, { storageKey: THEME_KEY });
 
 // ---------------------------------------------------------------------------------------------
-// The app: load the results bundle (the published one, or a copy dropped in), then the dashboard.
+// The app: download the published results bundle, then show the dashboard.
 // ---------------------------------------------------------------------------------------------
 
 const injection = readTestInjection(window.location.search);
 const loader = createLoader(els);
-const dashboard = createDashboard(els, window.location);
 let current: AbortController | null = null;
 
 function errorMessage(error: unknown): string {
@@ -39,30 +37,8 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Runs one load to the end: whatever starts after it (a drop, a retry) supersedes it. */
-async function load(obtain: (signal: AbortSignal) => Promise<Bundle>, source: string): Promise<void> {
-  current?.abort();
-  const controller = new AbortController();
-  current = controller;
-  els.dashboard.hidden = true;
-  els.loadCard.hidden = false;
-  try {
-    const bundle = await obtain(controller.signal);
-    if (controller.signal.aborted) return;
-    loader.reading("the results");
-    const db = readDatabase(bundle);
-    els.loadCard.hidden = true;
-    els.dashboard.hidden = false;
-    dashboard.show(db, source);
-  } catch (error) {
-    if (controller.signal.aborted) return;
-    loader.failed(errorMessage(error));
-  }
-}
-
 /** The published bundle, or, under a `?test` injection, its stand-in at this one point. */
-async function obtainPublished(signal: AbortSignal): Promise<Bundle> {
-  loader.downloading(null);
+async function obtainPublished(signal: AbortSignal, fresh: boolean): Promise<Bundle> {
   if (injection?.mockData) return synthesizeMockBundle();
   if (injection?.freezeLoading) {
     loader.downloading(FROZEN_PROGRESS);
@@ -71,29 +47,46 @@ async function obtainPublished(signal: AbortSignal): Promise<Bundle> {
   if (injection?.loadError) throw new BundleError(INJECTED_LOAD_ERROR);
   const bytes = await fetchBundleBytes(RESULTS_BUNDLE_URL, {
     signal,
+    fresh,
     onProgress: (progress) => loader.downloading(progress),
   });
   loader.reading("the results");
   return decodeBundle(bytes);
 }
 
-function loadPublished(): void {
-  void load(obtainPublished, injection?.mockData ? "synthesized by the mock_data test injection" : PUBLISHED_SOURCE);
+/** Downloads the results again in place, for the summary's refresh button. */
+async function refresh(): Promise<Database> {
+  try {
+    return readDatabase(await obtainPublished(new AbortController().signal, true));
+  } catch (error) {
+    throw new Error(errorMessage(error), { cause: error });
+  }
 }
 
-initDropzone(els, (file) => {
-  void load(async () => {
-    loader.reading(file.name);
-    return decodeBundle(await readFileBytes(file));
-  }, `from ${file.name}`);
-});
+const dashboard = createDashboard(els, window.location, { refresh });
 
-els.retryLoadBtn.addEventListener("click", loadPublished);
-els.changeSourceBtn.addEventListener("click", () => {
+/** The first load, with the loading card; a retry supersedes a load still running. */
+async function load(): Promise<void> {
   current?.abort();
+  const controller = new AbortController();
+  current = controller;
   els.dashboard.hidden = true;
   els.loadCard.hidden = false;
-  loader.idle("Drop a copy of the results bundle below, or download the latest one again.");
-});
+  loader.downloading(null);
+  try {
+    const bundle = await obtainPublished(controller.signal, false);
+    if (controller.signal.aborted) return;
+    loader.reading("the results");
+    const db = readDatabase(bundle);
+    els.loadCard.hidden = true;
+    els.dashboard.hidden = false;
+    dashboard.show(db);
+  } catch (error) {
+    if (controller.signal.aborted) return;
+    loader.failed(errorMessage(error));
+  }
+}
 
-loadPublished();
+els.retryLoadBtn.addEventListener("click", () => void load());
+
+void load();

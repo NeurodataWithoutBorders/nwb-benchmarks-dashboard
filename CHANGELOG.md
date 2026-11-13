@@ -4,4 +4,4 @@
 
 #### 🏠 Internal
 
-- Set the app up from the BBQS web-app template: the NWB Benchmarks paper's figures for all published results, with filters on every run's metadata and a manuscript view ([#2](https://github.com/brain-bbqs/nwb-benchmarks-dashboard/pull/2))
+- Set the app up from the BBQS web-app template: interactive figures of all published NWB Benchmarks results, a key:value search over every run's metadata, and a manuscript view ([#2](https://github.com/brain-bbqs/nwb-benchmarks-dashboard/pull/2))

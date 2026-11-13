@@ -1,6 +1,6 @@
-// @vitest-environment jsdom
-// Each figure drawn from the synthesized bundle: its panels, marks, legend entries and table rows.
-import { beforeEach, describe, expect, it } from "vitest";
+// Each figure's Plotly spec, built from the synthesized bundle: its panels, traces, legend entries and
+// table rows. How Plotly draws a spec is the Chromatic snapshots' to check.
+import { describe, expect, it } from "vitest";
 import { readDatabase } from "../../src/lib/database";
 import { ALL_DATA, applyFilters } from "../../src/lib/filters";
 import { incrementalSlicing } from "../../src/lib/figures/incremental";
@@ -8,66 +8,75 @@ import { methodRankings } from "../../src/lib/figures/rankings";
 import { fileOpenTraffic, slicingTraffic } from "../../src/lib/figures/traffic";
 import { performanceAcrossVersions } from "../../src/lib/figures/versions";
 import { synthesizeMockBundle } from "../../src/lib/mockBundle";
-import { createTooltip } from "../../src/ui/charts/chrome";
-import {
-  INCREMENTAL_COLUMNS,
-  incrementalLegend,
-  incrementalRows,
-  renderIncremental,
-} from "../../src/ui/figures/incremental";
-import { RANKINGS_COLUMNS, heatFill, heatMax, rankingsRows, renderRankings } from "../../src/ui/figures/rankings";
-import {
-  TRAFFIC_COLUMNS,
-  renderTraffic,
-  trafficLegend,
-  trafficRows,
-  zeroTrafficInsetLayout,
-} from "../../src/ui/figures/traffic";
-import { VERSIONS_COLUMNS, renderVersions, versionsLegend, versionsRows } from "../../src/ui/figures/versions";
+import type { FigureOptions, FigureSpec, Trace } from "../../src/ui/charts/plot";
+import type { ChartTheme } from "../../src/ui/charts/theme";
+import { INCREMENTAL_COLUMNS, incrementalFigure, incrementalRows } from "../../src/ui/figures/incremental";
+import { RANKINGS_COLUMNS, heatMax, rankingsFigure, rankingsRows } from "../../src/ui/figures/rankings";
+import { TRAFFIC_COLUMNS, trafficFigure, trafficRows } from "../../src/ui/figures/traffic";
+import { VERSIONS_COLUMNS, versionsFigure, versionsRows } from "../../src/ui/figures/versions";
 
 const dataset = applyFilters(readDatabase(synthesizeMockBundle()), ALL_DATA);
 const empty = applyFilters(readDatabase(synthesizeMockBundle()), { ...ALL_DATA, selected: { machine: ["nobody"] } });
-const tooltip = createTooltip(document.createElement("div"));
-let target: HTMLDivElement;
 
-beforeEach(() => {
-  target = document.createElement("div");
-  document.body.replaceChildren(target);
-});
+const theme: ChartTheme = {
+  text: "rgb(1, 1, 1)",
+  muted: "rgb(2, 2, 2)",
+  surface: "rgb(255, 255, 255)",
+  border: "rgb(3, 3, 3)",
+  grid: "rgb(4, 4, 4)",
+  frame: "rgb(5, 5, 5)",
+  guide: "rgb(6, 6, 6)",
+  font: "sans-serif",
+  heat: ["rgb(0, 0, 0)", "rgb(1, 0, 0)", "rgb(2, 0, 0)", "rgb(3, 0, 0)", "rgb(4, 0, 0)"],
+  color: (expression) => (expression.startsWith("var(") ? "rgb(9, 9, 9)" : expression),
+};
 
-function hover(element: Element): void {
-  element.dispatchEvent(Object.assign(new Event("pointermove"), { clientX: 1, clientY: 1 }));
+const wide: FigureOptions = { width: 1100, theme, letters: false };
+const narrow: FigureOptions = { width: 360, theme, letters: true };
+
+function annotationTexts(spec: FigureSpec): string[] {
+  return (spec.layout.annotations as { text: string }[]).map((annotation) => annotation.text);
+}
+
+function ofType(spec: FigureSpec, type: string): Trace[] {
+  return spec.data.filter((trace) => trace.type === type);
+}
+
+function legendNames(spec: FigureSpec): string[] {
+  return spec.data.filter((trace) => trace.showlegend !== false && trace.name).map((trace) => trace.name as string);
 }
 
 describe("rankings", () => {
   const panels = methodRankings(dataset);
 
-  it("draws four heatmaps with a star per modality", () => {
-    renderRankings(target, panels, "paper", tooltip);
-    expect(target.querySelectorAll("svg.chart")).toHaveLength(4);
-    expect(target.querySelectorAll(".heat-star")).toHaveLength(12);
-    expect(target.querySelectorAll(".heat-cell:not(.empty)")).toHaveLength(120);
-    hover(target.querySelector(".heat-cell") as Element);
-    expect(rankingsRows(panels)).toHaveLength(120);
-    expect(RANKINGS_COLUMNS.map((column) => column.value(rankingsRows(panels)[0]))).toContain("HDF5 remfile");
+  it("draws one heatmap per task, starring the fastest method of each modality", () => {
+    const spec = rankingsFigure(panels, "paper", wide);
+    const heatmaps = ofType(spec, "heatmap");
+    expect(heatmaps).toHaveLength(4);
+    const stars = heatmaps
+      .flatMap((heatmap) => (heatmap.text as string[][]).flat())
+      .filter((text) => text.endsWith("*"));
+    expect(stars).toHaveLength(12);
+    expect(heatmaps[1].zmax).toBe(200);
+    expect(annotationTexts(spec)).toContain("<b>Remote File Opening</b>");
+    expect(annotationTexts(spec).some((text) => text.includes("a)"))).toBe(false);
+    expect((heatmaps[0].customdata as string[][])[0][0]).toContain("standard deviation");
+    expect(spec.layout.xaxis2).toBeDefined();
+    const rows = rankingsRows(panels);
+    expect(rows).toHaveLength(120);
+    expect(RANKINGS_COLUMNS.map((column) => column.value(rows[0]))).toContain("HDF5 remfile");
   });
 
-  it("compacts narrow panels and draws empty cells", () => {
-    const sparse = methodRankings(empty);
-    const slot = document.createElement("div");
-    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 300 });
-    try {
-      renderRankings(slot, sparse, "data", tooltip);
-    } finally {
-      Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 0 });
-    }
-    expect(slot.querySelector("svg")?.classList.contains("heat-compact")).toBe(true);
-    expect(slot.querySelectorAll(".heat-cell.empty")).toHaveLength(30 * 4);
+  it("letters panels in the manuscript view, and fits narrow ones", () => {
+    const spec = rankingsFigure(methodRankings(empty), "data", narrow);
+    expect(annotationTexts(spec)).toContain("<b>a)</b>");
+    const [first] = ofType(spec, "heatmap");
+    expect((first.textfont as { size: number }).size).toBe(9);
+    expect((first.z as (number | null)[][]).flat().every((value) => value === null)).toBe(true);
+    expect((first.colorbar as { nticks: number }).nticks).toBe(3);
   });
 
-  it("mixes its fill along the ramp and scales to the paper or the data", () => {
-    expect(heatFill(0)).toBe("color-mix(in oklab, var(--heat-1) 0%, var(--heat-0))");
-    expect(heatFill(2)).toBe("color-mix(in oklab, var(--heat-4) 100%, var(--heat-3))");
+  it("scales to the paper's ranges or to the data", () => {
     expect(heatMax(panels[1], "paper")).toBe(200);
     expect(heatMax(panels[1], "data")).toBeGreaterThan(500);
     expect(heatMax(methodRankings(empty)[0], "data")).toBe(1);
@@ -78,48 +87,34 @@ describe("traffic", () => {
   it("draws the file-open scatters and the slicing trajectories, with an inset for zero traffic", () => {
     const fileOpen = [fileOpenTraffic(dataset, "backend"), fileOpenTraffic(dataset, "pynwb")];
     const slicing = slicingTraffic(dataset, true);
-    renderTraffic(target, fileOpen, slicing, tooltip);
-    expect(target.querySelectorAll("svg.chart")).toHaveLength(5);
-    expect(target.querySelectorAll(".chart-inset").length).toBeGreaterThan(0);
-    expect(target.querySelectorAll(".guide-label").length).toBeGreaterThan(0);
-    hover(target.querySelector(".chart-hit") as Element);
-    const legend = trafficLegend(fileOpen, slicing);
-    expect(legend.filter((entry) => entry.lineStyle === null)).toHaveLength(3);
+    const spec = trafficFigure(fileOpen, slicing, wide);
+    const texts = annotationTexts(spec);
+    expect(texts).toContain("no traffic measured");
+    expect(texts.some((text) => text.endsWith("MB/s"))).toBe(true);
+    expect(spec.layout.xaxis6).toBeDefined();
+    // Every method appears once in the legend, and the file-opening panels' modality markers after them.
+    const names = legendNames(spec);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.slice(-3)).toEqual(["Ecephys (file opening)", "Ophys (file opening)", "Icephys (file opening)"]);
+    const hover = spec.data.flatMap((trace) => (trace.customdata as string[] | undefined) ?? []);
+    expect(hover.some((text) => text.includes("effective throughput"))).toBe(true);
     const rows = trafficRows(fileOpen, slicing);
     expect(rows.length).toBeGreaterThan(100);
     expect(TRAFFIC_COLUMNS.map((column) => column.value(rows[rows.length - 1]))[0]).toBe("Remote slicing - preloaded");
-  });
-
-  // A phone-width panel, a desktop one and the tallest one panelHeight allows.
-  it.each([
-    [{ left: 58, top: 40, right: 327, bottom: 256 }],
-    [{ left: 58, top: 40, right: 498, bottom: 356 }],
-    [{ left: 58, top: 40, right: 700, bottom: 396 }],
-  ])("keeps the zero-traffic inset and its labels inside the plot area of %o", (inner) => {
-    const labelChars = 7;
-    const { frame, box } = zeroTrafficInsetLayout(inner, labelChars);
-    expect(frame.left).toBeGreaterThanOrEqual(inner.left);
-    expect(frame.right).toBeLessThan(inner.right);
-    expect(frame.top).toBeGreaterThanOrEqual(inner.top);
-    expect(frame.bottom).toBeLessThan(inner.bottom);
-    expect(box.left - frame.left).toBeGreaterThan(labelChars * 5);
-    expect(frame.bottom - box.bottom).toBeGreaterThan(12);
-    expect(box.top - frame.top).toBeGreaterThan(12);
-    expect(box.right - box.left).toBeLessThanOrEqual((inner.right - inner.left) * 0.4 + 1e-9);
-    expect(box.bottom - box.top).toBeLessThanOrEqual((inner.bottom - inner.top) * 0.34 + 1e-9);
-    expect(box.right - box.left).toBeGreaterThan(50);
+    expect(texts).not.toContain("<b>a)</b>");
+    expect(annotationTexts(trafficFigure(fileOpen, slicing, narrow))).toContain("<b>a)</b>");
   });
 
   it("marks panels without data, and a metric that is not bytes draws no throughput lines", () => {
-    renderTraffic(target, [fileOpenTraffic(empty, "backend")], slicingTraffic(empty, false), tooltip);
-    expect(target.querySelectorAll(".chart-empty")).toHaveLength(4);
-    renderTraffic(
-      target,
-      [fileOpenTraffic(dataset, "backend", "total_transfer_in_number_of_packets")],
-      slicingTraffic(dataset, false, "total_transfer_in_number_of_packets"),
-      tooltip,
+    const blank = trafficFigure([fileOpenTraffic(empty, "backend")], slicingTraffic(empty, false), wide);
+    expect(annotationTexts(blank).filter((text) => text === "No data")).toHaveLength(4);
+    const packets = "total_transfer_in_number_of_packets";
+    const spec = trafficFigure(
+      [fileOpenTraffic(dataset, "backend", packets)],
+      slicingTraffic(dataset, false, packets),
+      wide,
     );
-    expect(target.querySelectorAll(".guide-label")).toHaveLength(0);
+    expect(annotationTexts(spec).some((text) => text.endsWith("MB/s"))).toBe(false);
     expect(trafficRows([fileOpenTraffic(dataset, "backend")], slicingTraffic(dataset, false))[0].panel).toBe(
       "Remote File Opening",
     );
@@ -128,66 +123,62 @@ describe("traffic", () => {
   it("names a panel whose slicing moved no traffic at all", () => {
     const slicing = slicingTraffic(dataset, true);
     const onlyZero = { ...slicing, panels: [{ ...slicing.panels[0], points: [] }] };
-    renderTraffic(target, [], onlyZero, tooltip);
-    expect(target.textContent).toContain("No traffic measured");
+    expect(annotationTexts(trafficFigure([], onlyZero, wide))).toContain("No traffic measured");
   });
 });
 
 describe("versions", () => {
   it("draws one point plot per modality and preload state, with intervals", () => {
     const figure = performanceAcrossVersions(dataset, "time_remote_slicing");
-    renderVersions(target, figure, "Software environment", tooltip);
-    expect(target.querySelectorAll("svg.chart")).toHaveLength(6);
-    expect(target.querySelectorAll(".chart-errorbar").length).toBeGreaterThan(0);
-    hover(target.querySelector(".chart-hit") as Element);
-    expect(versionsLegend(figure)).toHaveLength(10);
+    const spec = versionsFigure(figure, "Software environment", wide);
+    expect(annotationTexts(spec)).toHaveLength(6);
+    expect(spec.data.every((trace) => (trace.error_y as { array: number[] }).array.length > 0)).toBe(true);
+    expect(legendNames(spec)).toHaveLength(10);
     const rows = versionsRows(figure);
     expect(VERSIONS_COLUMNS.map((column) => column.value(rows[0]))).toHaveLength(VERSIONS_COLUMNS.length);
   });
 
   it("slants group labels too long for a narrow panel", () => {
-    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 200 });
-    try {
-      renderVersions(
-        target,
-        performanceAcrossVersions(dataset, "time_remote_file_reading"),
-        "Software environment",
-        tooltip,
-      );
-    } finally {
-      Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 0 });
-    }
-    expect(target.querySelector("text[transform^='rotate(-35']")).not.toBeNull();
-    renderVersions(
-      target,
+    const environments = versionsFigure(performanceAcrossVersions(dataset, "time_remote_file_reading"), "x", {
+      ...narrow,
+      width: 200,
+    });
+    expect((environments.layout.xaxis as { tickangle: number }).tickangle).toBe(-35);
+    const versions = versionsFigure(
       performanceAcrossVersions(dataset, "time_remote_file_reading", "pkg-h5py"),
       "h5py version",
-      tooltip,
+      wide,
     );
-    expect(target.querySelector("text[transform^='rotate(-35']")).toBeNull();
-  });
-
-  it("marks a panel whose points carry no value", () => {
-    const figure = performanceAcrossVersions(dataset, "time_remote_file_reading");
-    const blank = { ...figure, panels: [{ ...figure.panels[0], series: [] }] };
-    renderVersions(target, blank, "x", tooltip);
-    expect(target.querySelector(".chart-empty")).not.toBeNull();
+    expect((versions.layout.xaxis as { tickangle: number }).tickangle).toBe(0);
   });
 });
 
 describe("incremental", () => {
+  const panels = incrementalSlicing(dataset);
+
   it("draws linear and log panels with bands and crosses", () => {
-    const panels = incrementalSlicing(dataset);
-    renderIncremental(target, panels, "linear", tooltip);
-    expect(target.querySelectorAll("svg.chart")).toHaveLength(3);
-    expect(target.querySelectorAll(".chart-band").length).toBeGreaterThan(0);
-    renderIncremental(target, panels, "log", tooltip);
-    expect(target.textContent).toContain("Cumulative time (s, log scale)");
-    expect(target.textContent).toContain("Number of TimeSeries read");
-    const hit = target.querySelector(".chart-hit");
-    if (hit) hover(hit);
-    expect(incrementalLegend(panels).map((entry) => entry.label)).toContain("HDF5 download + local");
+    const linear = incrementalFigure(panels, "linear", wide);
+    expect(linear.data.some((trace) => trace.fill === "tonexty")).toBe(true);
+    expect(legendNames(linear)).toContain("HDF5 download + local");
+    expect((linear.layout.xaxis3 as { title: { text: string } }).title.text).toBe("Number of TimeSeries read");
+    const log = incrementalFigure(panels, "log", narrow);
+    expect((log.layout.yaxis as { type: string; title: { text: string } }).title.text).toBe(
+      "Cumulative time (s, log scale)",
+    );
+    expect(annotationTexts(log)).toContain("<b>a)</b>");
     const rows = incrementalRows(panels);
     expect(INCREMENTAL_COLUMNS.map((column) => column.value(rows[0]))).toHaveLength(INCREMENTAL_COLUMNS.length);
+  });
+
+  it("leaves values a logarithmic axis cannot show out of the line", () => {
+    const zero = panels.map((panel) => ({
+      ...panel,
+      curves: panel.curves.map((curve) => ({
+        ...curve,
+        points: curve.points.map((point, at) => (at === 0 ? { ...point, median: 0, min: 0 } : point)),
+      })),
+    }));
+    const spec = incrementalFigure(zero, "log", wide);
+    expect(spec.data.some((trace) => (trace.y as (number | null)[])[0] === null)).toBe(true);
   });
 });

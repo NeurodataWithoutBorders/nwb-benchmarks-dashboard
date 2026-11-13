@@ -7,11 +7,11 @@ afterEach(() => {
 });
 
 describe("fillTable", () => {
-  it("builds the table when the details element opens, formatting each kind of value", () => {
-    const details = document.createElement("details");
-    details.append(document.createElement("summary"));
+  it("builds the table in its container, formatting each kind of value", () => {
+    const container = document.createElement("div");
+    container.append(document.createElement("p"));
     fillTable(
-      details,
+      container,
       [
         { label: "Name", value: (row: { name: string; value: number | null; flag: boolean }) => row.name },
         { label: "Value", value: (row) => row.value },
@@ -25,10 +25,14 @@ describe("fillTable", () => {
         { name: "d", value: Number.NaN, flag: false },
       ],
     );
-    expect(details.querySelector("table")).toBeNull();
-    details.open = true;
-    details.ontoggle?.(new Event("toggle"));
-    const cells = [...details.querySelectorAll("tbody tr")].map((row) =>
+    expect(container.children).toHaveLength(1);
+    expect([...container.querySelectorAll("th")].map((cell) => cell.textContent)).toEqual([
+      "Name",
+      "Value",
+      "Flag",
+      "Custom",
+    ]);
+    const cells = [...container.querySelectorAll("tbody tr")].map((row) =>
       [...row.children].map((cell) => cell.textContent),
     );
     expect(cells).toEqual([
@@ -37,17 +41,7 @@ describe("fillTable", () => {
       ["c", "7", "no", "custom"],
       ["d", "–", "no", "custom"],
     ]);
-    details.ontoggle?.(new Event("toggle"));
-    expect(details.querySelectorAll("table")).toHaveLength(1);
-  });
-
-  it("rebuilds an open table straight away", () => {
-    const details = document.createElement("details");
-    details.open = true;
-    fillTable(details, [{ label: "A", value: (row: number) => row }], [1]);
-    expect(details.querySelectorAll("td")).toHaveLength(1);
-    details.open = false;
-    details.ontoggle?.(new Event("toggle"));
+    expect(container.querySelector("td.num")?.textContent).toBe("1.235");
   });
 });
 

@@ -22,6 +22,7 @@ function paperState(environmentIds: string[]): FilterState {
     to: null,
     applyExclusions: true,
     selected: { machine: LBL_MAC_MACHINE_IDS, environment: environmentIds },
+    text: [],
   };
 }
 

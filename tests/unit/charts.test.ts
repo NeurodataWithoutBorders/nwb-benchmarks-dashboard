@@ -1,182 +1,124 @@
 // @vitest-environment jsdom
+// The Plotly layer: the subplot grid, the theme's colors, and the wrapper with usage-page's modebar.
+import Plotly from "plotly.js-cartesian-dist-min";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { axisNames, gridLayout, legendHeight } from "../../src/ui/charts/grid";
 import {
-  createTooltip,
-  emptyPanel,
-  onHover,
-  panelSlots,
-  renderLegend,
-  setNote,
-  slotWidth,
-} from "../../src/ui/charts/chrome";
-import {
-  annotation,
-  band,
-  createPanel,
-  cross,
-  errorBar,
-  hitTarget,
-  line,
-  marker,
-  throughputLines,
-} from "../../src/ui/charts/svg";
+  clearFigure,
+  drawFigure,
+  emptyFigure,
+  hoverText,
+  plotConfig,
+  plotText,
+  plotlyDash,
+  plotlySymbol,
+} from "../../src/ui/charts/plot";
+import { readTheme, translucent } from "../../src/ui/charts/theme";
+import { lastPlot, plotCount } from "./helpers/plotly";
 
-afterEach(() => {
-  document.body.replaceChildren();
-});
+describe("the subplot grid", () => {
+  const padding = { top: 30, right: 10, bottom: 50, left: 60 };
 
-describe("createPanel", () => {
-  it("draws a log-log panel with its ticks, titles and clip", () => {
-    const panel = createPanel({
-      width: 400,
-      height: 300,
-      title: "Ecephys",
-      x: { log: true, domain: [1e3, 1e9], label: "Bytes", format: String },
-      y: { log: true, domain: [0.1, 100], label: "Runtime (s)", format: String },
-    });
-    expect(panel.svg.getAttribute("viewBox")).toBe("0 0 400 300");
-    expect(panel.svg.getAttribute("aria-label")).toBe("Ecephys");
-    expect(panel.svg.querySelector(".panel-title")?.textContent).toBe("Ecephys");
-    expect(panel.svg.querySelectorAll("text.tick").length).toBe(panel.x.ticks.length + panel.y.ticks.length);
-    expect(panel.svg.querySelector("clipPath rect")).not.toBeNull();
-    expect(panel.x(1e3)).toBe(panel.inner.left);
+  it("fits as many columns as the width allows, rows as tall as their tallest panel", () => {
+    const grid = gridLayout({ width: 1000, panelHeights: [100, 200, 150], minPanelWidth: 300, padding, bottom: 40 });
+    expect(grid.columns).toBe(3);
+    expect(grid.height).toBe(30 + 200 + 50 + 40);
+    // Each panel's plot sits inside its cell, below the row's padding.
+    expect(grid.domains[0].x).toEqual([60 / 1000, (1000 / 3 - 10) / 1000]);
+    expect(grid.domains[0].y).toEqual([1 - 230 / 280, 1 - 30 / 280]);
+    expect(grid.fx(100)).toBe(0.1);
+    expect(grid.fy(28)).toBe(0.1);
+    expect(grid.margin).toEqual({ l: 0, r: 0, t: 0, b: 40 });
   });
 
-  it("takes given ticks for a categorical axis, and a margin", () => {
-    const panel = createPanel({
-      width: 300,
-      height: 200,
-      title: "t",
-      x: { domain: [-0.5, 1.5], label: "x", ticks: [0, 1], format: (value) => ["a", "b"][value] },
-      y: { domain: [0, 10], label: "y", format: String },
-      margin: { bottom: 80 },
-      description: "described",
-    });
-    expect([...panel.svg.querySelectorAll("text.tick")].slice(0, 2).map((text) => text.textContent)).toEqual([
-      "a",
-      "b",
+  it("stacks panels in one column when the width is narrow", () => {
+    const grid = gridLayout({ width: 320, panelHeights: [100, 100], minPanelWidth: 400, padding, bottom: 0 });
+    expect(grid.columns).toBe(1);
+    expect(grid.domains[1].y[1]).toBeLessThan(grid.domains[0].y[0]);
+  });
+
+  it("names subplot axes as Plotly does, and sizes a legend", () => {
+    expect(axisNames(0)).toEqual({ x: "x", y: "y", xaxis: "xaxis", yaxis: "yaxis" });
+    expect(axisNames(2)).toEqual({ x: "x3", y: "y3", xaxis: "xaxis3", yaxis: "yaxis3" });
+    expect(legendHeight(0, 500)).toBe(16);
+    expect(legendHeight(7, 500)).toBe(24 + 4 * 22);
+    expect(legendHeight(3, 100)).toBe(24 + 3 * 22);
+  });
+});
+
+describe("the theme", () => {
+  it("resolves colors on the page, falling back to the expression where it cannot", () => {
+    const theme = readTheme();
+    // jsdom does not resolve custom properties, so the tokens come back as they were asked for.
+    expect(theme.text).toBe("var(--text)");
+    expect(theme.heat).toHaveLength(5);
+    expect(theme.color("rgb(1, 2, 3)")).toBe("rgb(1, 2, 3)");
+    expect(theme.color("rgb(1, 2, 3)")).toBe("rgb(1, 2, 3)");
+    expect(theme.color("red")).toBe("rgb(255, 0, 0)");
+    expect(document.body.querySelectorAll("span[aria-hidden='true']")).toHaveLength(1);
+  });
+
+  it("makes a color see-through", () => {
+    expect(translucent("rgb(10, 20, 30)", 0.2)).toBe("rgba(10, 20, 30, 0.2)");
+    expect(translucent("rgba(10,20,30,1)", 0.5)).toBe("rgba(10, 20, 30, 0.5)");
+    expect(translucent("var(--x)", 0.5)).toBe("var(--x)");
+  });
+});
+
+describe("drawing with Plotly", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("swaps the camera for PNG and SVG downloads beside a source-data link, and never offers the cloud", () => {
+    const config = plotConfig("figure", "https://example.org/data");
+    expect(config.showSendToCloud).toBe(false);
+    expect(config.modeBarButtonsToRemove).toEqual(["toImage", "sendChartToCloud"]);
+    const [downloads, source] = config.modeBarButtonsToAdd as unknown as {
+      name: string;
+      click: (gd: unknown) => void;
+    }[][];
+    expect(downloads.map((button) => button.name)).toEqual(["Download plot as PNG", "Download plot as SVG"]);
+    const gd = document.createElement("div");
+    downloads[0].click(gd);
+    downloads[1].click(gd);
+    expect(vi.mocked(Plotly.downloadImage).mock.calls.slice(-2)).toEqual([
+      [gd, { format: "png", filename: "figure" }],
+      [gd, { format: "svg", filename: "figure" }],
     ]);
-    expect(panel.inner.bottom).toBe(120);
-    expect(panel.svg.getAttribute("aria-label")).toBe("described");
-  });
-});
-
-describe("marks", () => {
-  it("draws lines with their dash patterns, skipping missing points", () => {
-    expect(
-      line(
-        [
-          [0, 0],
-          [1, Number.NaN],
-          [2, 2],
-        ],
-        "red",
-      ).getAttribute("d"),
-    ).toBe("M0.00,0.00L2.00,2.00");
-    expect(line([[0, 0]], "red", "dashed").getAttribute("stroke-dasharray")).toBe("7 4");
-    expect(line([[0, 0]], "red", "dashdot").getAttribute("stroke-dasharray")).toBe("8 3 2 3");
-    expect(line([[0, 0]], "red").hasAttribute("stroke-dasharray")).toBe(false);
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    source[0].click(gd);
+    expect(open).toHaveBeenCalledWith("https://example.org/data", "_blank", "noopener");
   });
 
-  it("draws every marker shape and the other marks", () => {
-    expect(marker("circle", 1, 1, "red").tagName).toBe("circle");
-    expect(marker("square", 1, 1, "red").tagName).toBe("rect");
-    expect(marker("triangle", 1, 1, "red").tagName).toBe("polygon");
-    expect(
-      band(
-        [
-          [0, 1],
-          [1, 1],
-        ],
-        [
-          [0, 0],
-          [1, 0],
-        ],
-        "red",
-      ).getAttribute("d"),
-    ).toMatch(/Z$/);
-    expect(cross(5, 5, "red").getAttribute("d")).toContain("M0,0L10,10");
-    expect(errorBar(5, 1, 9, "red").getAttribute("d")).toContain("M5,1L5,9");
-    expect(hitTarget(1, 2).getAttribute("r")).toBe("12");
-    expect(annotation(1, 2, "5").textContent).toBe("5");
-  });
-
-  it("labels throughput lines where they leave the plot", () => {
-    const panel = createPanel({
-      width: 400,
-      height: 300,
-      title: "t",
-      x: { log: true, domain: [1e6, 1e9], label: "x", format: String },
-      y: { log: true, domain: [0.1, 1000], label: "y", format: String },
-    });
-    throughputLines(panel, [0.0001, 1, 10]);
-    const labels = [...panel.overlay.querySelectorAll(".guide-label")].map((text) => text.textContent);
-    expect(labels).toEqual(["1 MB/s", "10 MB/s"]);
-    expect(panel.plot.querySelectorAll("path").length).toBe(3);
-  });
-});
-
-describe("chrome", () => {
-  it("lays out panel slots and measures them", () => {
+  it("draws a spec into its element, reports Plotly's failures, and clears it", async () => {
     const target = document.createElement("div");
-    const slots = panelSlots(target, 3, 300);
-    expect(slots).toHaveLength(3);
-    expect(target.style.getPropertyValue("--panel-min")).toBe("300px");
-    expect(slotWidth(slots[0])).toBe(460);
-    Object.defineProperty(slots[1], "clientWidth", { value: 333.7 });
-    expect(slotWidth(slots[1])).toBe(333);
+    const spec = emptyFigure(readTheme(), "Nothing <here>");
+    drawFigure(target, spec, "name", "https://example.org");
+    expect(plotCount(target)).toBe(1);
+    expect(lastPlot(target)?.layout).toBe(spec.layout);
+    expect((spec.layout.annotations as { text: string }[])[0].text).toBe("Nothing &lt;here&gt;");
+
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(Plotly.react).mockRejectedValueOnce(new Error("no"));
+    drawFigure(target, spec, "name", "https://example.org");
+    await vi.waitFor(() => expect(error).toHaveBeenCalled());
+
+    target.append(document.createElement("span"));
+    clearFigure(target);
+    expect(Plotly.purge).toHaveBeenCalledWith(target);
+    expect(target.childElementCount).toBe(0);
   });
 
-  it("fills a legend, hiding it when empty", () => {
-    const list = document.createElement("ul");
-    renderLegend(
-      list,
-      [
-        { label: "A", color: "red", marker: "square" },
-        { label: "B", color: "blue", lineStyle: null },
-      ],
-      "Methods",
-    );
-    expect([...list.querySelectorAll("li")].map((item) => item.textContent)).toEqual(["Methods", "A", "B"]);
-    expect(list.querySelectorAll("li")[2].querySelector("path")).toBeNull();
-    renderLegend(list, []);
-    expect(list.hidden).toBe(true);
+  it("escapes text from the data, and writes hover text as a heading over lines", () => {
+    expect(plotText("a < b & c > d")).toBe("a &lt; b &amp; c &gt; d");
+    expect(hoverText("Method <x>", [{ label: "mean", value: "1 s" }])).toBe("<b>Method &lt;x&gt;</b><br>mean: 1 s");
   });
 
-  it("shows a tooltip near the pointer, through textContent", () => {
-    const element = document.createElement("div");
-    document.body.append(element);
-    const tooltip = createTooltip(element);
-    const target = document.createElement("div");
-    onHover(target, tooltip, "<b>title</b>", () => [
-      { label: "mean", value: "1 s", color: "red" },
-      { label: "n", value: "3" },
-    ]);
-    target.dispatchEvent(Object.assign(new Event("pointermove"), { clientX: 10, clientY: 20 }));
-    expect(element.hidden).toBe(false);
-    expect(element.querySelector(".chart-tooltip-title")?.textContent).toBe("<b>title</b>");
-    expect(element.querySelectorAll(".chart-tooltip-row")).toHaveLength(2);
-    expect(element.style.left).toBe("24px");
-    target.dispatchEvent(new Event("pointerleave"));
-    expect(element.hidden).toBe(true);
-  });
-
-  it("keeps a tooltip inside the window", () => {
-    const element = document.createElement("div");
-    document.body.append(element);
-    vi.spyOn(element, "getBoundingClientRect").mockReturnValue({ width: 200, height: 100 } as DOMRect);
-    createTooltip(element).show({ clientX: window.innerWidth - 10, clientY: window.innerHeight - 10 }, "t", []);
-    expect(element.style.left).toBe(`${window.innerWidth - 10 - 14 - 200}px`);
-  });
-
-  it("shows and hides notes and empty panels", () => {
-    const note = document.createElement("p");
-    setNote(note, "Careful");
-    expect(note.hidden).toBe(false);
-    setNote(note, null);
-    expect(note.hidden).toBe(true);
-    const slot = document.createElement("div");
-    emptyPanel(slot, "Ophys");
-    expect(slot.textContent).toBe("OphysNo data");
+  it("translates line styles and marker shapes", () => {
+    expect(plotlyDash("dashed")).toBe("dash");
+    expect(plotlyDash("other")).toBe("solid");
+    expect(plotlySymbol("triangle")).toBe("triangle-up");
+    expect(plotlySymbol("other")).toBe("circle");
   });
 });
