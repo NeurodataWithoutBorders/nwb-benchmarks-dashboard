@@ -133,6 +133,11 @@
   gap: 0.5rem;
 }
 
+/* Wide enough for the subtitle on one line under the title, beside the taller logo. */
+.site-title {
+  max-width: 40rem;
+}
+
 /* The manuscript toggle borrows the theme toggle's outlined circle, and fills it while it is on. */
 .manuscript-toggle[aria-pressed="true"] {
   background: var(--accent);
