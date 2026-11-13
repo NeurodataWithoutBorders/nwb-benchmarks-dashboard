@@ -47,3 +47,10 @@ forEachViewport(test, "Main page - manuscript button explained", async ({ page }
   await expect(page.locator("#manuscript-tooltip")).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+forEachViewport(test, "Main page - figure settings open", async ({ page }) => {
+  await page.goto("/?test&mock_data");
+  await page.locator("#traffic-settings-btn").click();
+  await expect(page.locator("#traffic-settings")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});

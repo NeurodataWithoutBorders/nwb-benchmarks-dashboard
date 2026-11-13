@@ -77,12 +77,19 @@ test.describe("the dashboard", () => {
     await expect(page).toHaveURL(/\?test&mock_data$/);
   });
 
-  test("redraws a figure for its own controls, and switches it to a table", async ({ page }) => {
+  test("redraws a figure for the settings behind its gear, and switches it to a table", async ({ page }) => {
     await page.goto("/?test&mock_data");
+    await expect(page.locator("#versions-benchmark")).toBeHidden();
+    await page.locator("#versions-settings-btn").click();
     await page.locator("#versions-benchmark").selectOption("time_remote_slicing");
     await expect(page.locator("#versions-plot")).toContainText("not preloaded");
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#versions-settings")).toBeHidden();
+    await page.locator("#incremental-settings-btn").click();
     await page.locator("#incremental-scale").selectOption("log");
     await expect(page.locator("#incremental-plot")).toContainText("log scale");
+    await page.locator("#incremental-card h2").click();
+    await expect(page.locator("#incremental-settings")).toBeHidden();
 
     await page.locator("label[for=rankings-view-table]").click();
     await expect(page.locator("#rankings-plot")).toBeHidden();

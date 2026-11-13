@@ -1,13 +1,57 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
-import { THEME_KEY } from "../../src/lib/settings";
+// @vitest-environment jsdom
+// A figure card's settings popup, against hand-built elements.
+import { beforeEach, describe, expect, it } from "vitest";
+import { initSettings, type SettingsPopup } from "../../src/ui/settings";
 
-// Storing, loading and refusing the theme are @brain-bbqs/ui's (initThemeToggle) and are tested
-// there; the app's part is the key, which the toggle and the pre-paint script have to share.
-describe("THEME_KEY", () => {
-  it("is namespaced by this app's package name", () => {
-    const { name } = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf-8")) as { name: string };
-    expect(THEME_KEY).toBe(`${name}.theme`);
+let button: HTMLButtonElement;
+let panel: HTMLDivElement;
+let outside: HTMLParagraphElement;
+let popup: SettingsPopup;
+
+beforeEach(() => {
+  button = document.createElement("button");
+  panel = document.createElement("div");
+  panel.hidden = true;
+  panel.append(document.createElement("select"));
+  outside = document.createElement("p");
+  document.body.replaceChildren(button, panel, outside);
+  popup = initSettings(button, panel);
+});
+
+describe("the settings popup", () => {
+  it("opens and closes from its gear", () => {
+    button.click();
+    expect(panel.hidden).toBe(false);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    button.click();
+    expect(panel.hidden).toBe(true);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("stays open for clicks inside it, and closes for one elsewhere", () => {
+    button.click();
+    (panel.firstElementChild as HTMLElement).click();
+    expect(panel.hidden).toBe(false);
+    outside.click();
+    expect(panel.hidden).toBe(true);
+    outside.click();
+    expect(panel.hidden).toBe(true);
+  });
+
+  it("closes on Escape, handing focus back to the gear", () => {
+    button.click();
+    panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    expect(panel.hidden).toBe(false);
+    panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(panel.hidden).toBe(true);
+    expect(document.activeElement).toBe(button);
+    // Escape with the popup closed leaves focus where it is.
+    outside.tabIndex = 0;
+    outside.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(document.activeElement).toBe(outside);
+    button.click();
+    popup.close();
+    expect(panel.hidden).toBe(true);
   });
 });

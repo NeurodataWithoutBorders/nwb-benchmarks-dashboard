@@ -182,23 +182,51 @@
             <h2 id="rankings-title">Which method is fastest?</h2>
           </div>
           <p class="figure-lead">
-            Mean runtime of each method in each modality, for four remote-access tasks; a star marks the fastest method
+            Mean runtime of each method for each modality, for four remote-access tasks; a star marks the fastest method
             of each modality.
           </p>
           <div class="figure-controls">
-            <div class="figure-control">
-              <span>View</span>
-              <div class="radio-toggle" role="radiogroup" aria-label="View">
-                <input type="radio" id="rankings-view-plot" name="rankings-view" value="plot" checked />
-                <label for="rankings-view-plot">Plot</label>
-                <input type="radio" id="rankings-view-table" name="rankings-view" value="table" />
-                <label for="rankings-view-table">Table</label>
+            <div class="radio-toggle" role="radiogroup" aria-label="View">
+              <input type="radio" id="rankings-view-plot" name="rankings-view" value="plot" checked />
+              <label for="rankings-view-plot">Plot</label>
+              <input type="radio" id="rankings-view-table" name="rankings-view" value="table" />
+              <label for="rankings-view-table">Table</label>
+            </div>
+            <div class="settings-wrapper">
+              <button
+                type="button"
+                id="rankings-settings-btn"
+                class="settings-btn"
+                aria-label="Figure settings"
+                title="Figure settings"
+                aria-expanded="false"
+                aria-controls="rankings-settings"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
+                </svg>
+              </button>
+              <div id="rankings-settings" class="settings-panel" hidden>
+                <div class="settings-panel-title">Figure settings</div>
+                <label class="settings-row">
+                  <span>Color scale</span>
+                  <select id="rankings-scale"></select>
+                </label>
               </div>
             </div>
-            <label class="figure-control">
-              <span>Color scale</span>
-              <select id="rankings-scale"></select>
-            </label>
           </div>
           <p id="rankings-note" class="figure-note" hidden></p>
           <div id="rankings-plot" class="figure-plot"></div>
@@ -216,23 +244,51 @@
             lines mark constant throughput.
           </p>
           <div class="figure-controls">
-            <div class="figure-control">
-              <span>View</span>
-              <div class="radio-toggle" role="radiogroup" aria-label="View">
-                <input type="radio" id="traffic-view-plot" name="traffic-view" value="plot" checked />
-                <label for="traffic-view-plot">Plot</label>
-                <input type="radio" id="traffic-view-table" name="traffic-view" value="table" />
-                <label for="traffic-view-table">Table</label>
+            <div class="radio-toggle" role="radiogroup" aria-label="View">
+              <input type="radio" id="traffic-view-plot" name="traffic-view" value="plot" checked />
+              <label for="traffic-view-plot">Plot</label>
+              <input type="radio" id="traffic-view-table" name="traffic-view" value="table" />
+              <label for="traffic-view-table">Table</label>
+            </div>
+            <div class="settings-wrapper">
+              <button
+                type="button"
+                id="traffic-settings-btn"
+                class="settings-btn"
+                aria-label="Figure settings"
+                title="Figure settings"
+                aria-expanded="false"
+                aria-controls="traffic-settings"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
+                </svg>
+              </button>
+              <div id="traffic-settings" class="settings-panel" hidden>
+                <div class="settings-panel-title">Figure settings</div>
+                <label class="settings-row">
+                  <span>Network metric</span>
+                  <select id="traffic-metric"></select>
+                </label>
+                <label class="settings-row">
+                  <span>Slicing</span>
+                  <select id="traffic-preload"></select>
+                </label>
               </div>
             </div>
-            <label class="figure-control">
-              <span>Network metric</span>
-              <select id="traffic-metric"></select>
-            </label>
-            <label class="figure-control">
-              <span>Slicing</span>
-              <select id="traffic-preload"></select>
-            </label>
           </div>
           <p id="traffic-note" class="figure-note" hidden></p>
           <div id="traffic-plot" class="figure-plot"></div>
@@ -250,23 +306,51 @@
             bootstrap intervals.
           </p>
           <div class="figure-controls">
-            <div class="figure-control">
-              <span>View</span>
-              <div class="radio-toggle" role="radiogroup" aria-label="View">
-                <input type="radio" id="versions-view-plot" name="versions-view" value="plot" checked />
-                <label for="versions-view-plot">Plot</label>
-                <input type="radio" id="versions-view-table" name="versions-view" value="table" />
-                <label for="versions-view-table">Table</label>
+            <div class="radio-toggle" role="radiogroup" aria-label="View">
+              <input type="radio" id="versions-view-plot" name="versions-view" value="plot" checked />
+              <label for="versions-view-plot">Plot</label>
+              <input type="radio" id="versions-view-table" name="versions-view" value="table" />
+              <label for="versions-view-table">Table</label>
+            </div>
+            <div class="settings-wrapper">
+              <button
+                type="button"
+                id="versions-settings-btn"
+                class="settings-btn"
+                aria-label="Figure settings"
+                title="Figure settings"
+                aria-expanded="false"
+                aria-controls="versions-settings"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
+                </svg>
+              </button>
+              <div id="versions-settings" class="settings-panel" hidden>
+                <div class="settings-panel-title">Figure settings</div>
+                <label class="settings-row">
+                  <span>Benchmark</span>
+                  <select id="versions-benchmark"></select>
+                </label>
+                <label class="settings-row">
+                  <span>Compare by</span>
+                  <select id="versions-axis"></select>
+                </label>
               </div>
             </div>
-            <label class="figure-control">
-              <span>Benchmark</span>
-              <select id="versions-benchmark"></select>
-            </label>
-            <label class="figure-control">
-              <span>Compare by</span>
-              <select id="versions-axis"></select>
-            </label>
           </div>
           <p id="versions-note" class="figure-note" hidden></p>
           <div id="versions-plot" class="figure-plot"></div>
@@ -285,19 +369,47 @@
             behind.
           </p>
           <div class="figure-controls">
-            <div class="figure-control">
-              <span>View</span>
-              <div class="radio-toggle" role="radiogroup" aria-label="View">
-                <input type="radio" id="incremental-view-plot" name="incremental-view" value="plot" checked />
-                <label for="incremental-view-plot">Plot</label>
-                <input type="radio" id="incremental-view-table" name="incremental-view" value="table" />
-                <label for="incremental-view-table">Table</label>
+            <div class="radio-toggle" role="radiogroup" aria-label="View">
+              <input type="radio" id="incremental-view-plot" name="incremental-view" value="plot" checked />
+              <label for="incremental-view-plot">Plot</label>
+              <input type="radio" id="incremental-view-table" name="incremental-view" value="table" />
+              <label for="incremental-view-table">Table</label>
+            </div>
+            <div class="settings-wrapper">
+              <button
+                type="button"
+                id="incremental-settings-btn"
+                class="settings-btn"
+                aria-label="Figure settings"
+                title="Figure settings"
+                aria-expanded="false"
+                aria-controls="incremental-settings"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
+                </svg>
+              </button>
+              <div id="incremental-settings" class="settings-panel" hidden>
+                <div class="settings-panel-title">Figure settings</div>
+                <label class="settings-row">
+                  <span>Time axis</span>
+                  <select id="incremental-scale"></select>
+                </label>
               </div>
             </div>
-            <label class="figure-control">
-              <span>Time axis</span>
-              <select id="incremental-scale"></select>
-            </label>
           </div>
           <p id="incremental-note" class="figure-note" hidden></p>
           <div id="incremental-plot" class="figure-plot"></div>

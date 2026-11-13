@@ -15,6 +15,8 @@ function figureCard(prefix: string) {
     note: required<HTMLParagraphElement>(`${prefix}-note`),
     viewPlot: required<HTMLInputElement>(`${prefix}-view-plot`),
     viewTable: required<HTMLInputElement>(`${prefix}-view-table`),
+    settingsBtn: required<HTMLButtonElement>(`${prefix}-settings-btn`),
+    settings: required<HTMLDivElement>(`${prefix}-settings`),
     plot: required<HTMLDivElement>(`${prefix}-plot`),
     tableView: required<HTMLDivElement>(`${prefix}-table-view`),
     table: required<HTMLDivElement>(`${prefix}-table`),

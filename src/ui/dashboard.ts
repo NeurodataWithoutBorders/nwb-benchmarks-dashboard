@@ -36,6 +36,7 @@ import { RANKINGS_COLUMNS, rankingsFigure, rankingsRows, type HeatmapScale } fro
 import { TRAFFIC_COLUMNS, trafficFigure, trafficRows } from "./figures/traffic";
 import { VERSIONS_COLUMNS, versionsFigure, versionsRows } from "./figures/versions";
 import { initSearch } from "./search";
+import { initSettings } from "./settings";
 import { downloadCsv, fillTable } from "./table";
 
 /** Where the modebar's "View source data on GitHub" button goes. */
@@ -95,7 +96,7 @@ export function createDashboard(
   fillSelect(
     els.rankings.scale,
     [
-      ["paper", "Fixed (0–4 s, 0–200 s, 0–10 s)"],
+      ["paper", "Fixed"],
       ["data", "Fitted to the data"],
     ],
     "paper",
@@ -310,6 +311,7 @@ export function createDashboard(
 
   for (const renderer of renderers) {
     const [card] = renderer;
+    initSettings(card.settingsBtn, card.settings);
     for (const control of card.card.querySelectorAll("select"))
       control.addEventListener("change", () => renderFigure(...renderer));
     const showView = (): void => {
