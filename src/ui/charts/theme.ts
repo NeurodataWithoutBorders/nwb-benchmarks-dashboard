@@ -10,6 +10,8 @@ export interface ChartTheme {
   grid: string;
   frame: string;
   guide: string;
+  /** For what the eye should go to first, such as the fastest cell of a heatmap. */
+  accent: string;
   font: string;
   /** The heatmap's five-stop sequential ramp, low to high. */
   heat: string[];
@@ -61,6 +63,7 @@ export function readTheme(root: HTMLElement = document.body): ChartTheme {
     grid: token("chart-grid"),
     frame: token("chart-frame"),
     guide: token("chart-guide"),
+    accent: token("accent"),
     font: getComputedStyle(root).fontFamily || "sans-serif",
     heat: [0, 1, 2, 3, 4].map((stop) => token(`heat-${stop}`)),
     color,

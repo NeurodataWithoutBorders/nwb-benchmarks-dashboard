@@ -57,23 +57,26 @@ export function rankingsFigure(
   const cellWidth = width / columns;
   // Narrow panels (phones) set their text a size smaller, and give the method names at most 45 % of the panel.
   const compact = cellWidth < 460;
-  const fontSize = compact ? 10 : 12;
+  const fontSize = compact ? 9 : 12;
+  // Room on the right for each panel's vertical color scale, its ticks and its title.
   const padding = {
     top: 32,
-    right: 10,
-    bottom: 76,
-    left: Math.min(cellWidth * 0.45, longest * fontSize * 0.62 + 12),
+    right: compact ? 52 : 76,
+    bottom: 30,
+    left: Math.min(cellWidth * 0.42, longest * fontSize * 0.6 + 10),
   };
+  const cellHeight = CELL_HEIGHT;
   const plotWidth = cellWidth - padding.left - padding.right;
   const grid = gridLayout({
     width,
-    panelHeights: panels.map((panel) => panel.methods.length * CELL_HEIGHT),
+    panelHeights: panels.map((panel) => panel.methods.length * cellHeight),
     minPanelWidth: MIN_PANEL_WIDTH,
     padding,
     bottom: 4,
   });
   const layout = baseLayout(theme, grid, false);
   const annotations = layout.annotations as Record<string, unknown>[];
+  const shapes = layout.shapes as Record<string, unknown>[];
   const colorscale = theme.heat.map((color, stop) => [stop / (theme.heat.length - 1), color]);
   const data: Trace[] = panels.map((panel, index) => {
     const names = axisNames(index);
@@ -97,6 +100,37 @@ export function rankingsFigure(
       fixedrange: true,
     });
     annotations.push(...panelLabels(theme, grid, domain, panel.title, panelLetter(letters, index), padding));
+    // The fastest method of each modality: its cell outlined, and a star badge in its corner (or, where
+    // a narrow cell has no room beside its value, a star before the value).
+    panel.fastest.forEach((method, modality) => {
+      if (method === null) return;
+      const at = { xref: names.x, yref: names.y };
+      shapes.push({
+        type: "rect",
+        ...at,
+        x0: modality - 0.5,
+        x1: modality + 0.5,
+        y0: method - 0.5,
+        y1: method + 0.5,
+        line: { color: theme.accent, width: 3 },
+        layer: "above",
+      });
+      if (compact) return;
+      annotations.push({
+        ...at,
+        text: "★",
+        x: modality + 0.5,
+        y: method - 0.5,
+        xanchor: "right",
+        yanchor: "top",
+        xshift: -2,
+        yshift: -2,
+        showarrow: false,
+        bgcolor: theme.accent,
+        borderpad: 1,
+        font: { color: theme.surface, size: 11 },
+      });
+    });
     const max = heatMax(panel, scale);
     return {
       type: "heatmap",
@@ -106,9 +140,11 @@ export function rankingsFigure(
       y: labels,
       z: panel.cells.map((row) => row.map((cell) => cell?.mean ?? null)),
       text: panel.cells.map((row, method) =>
-        row.map((cell, modality) =>
-          cell ? `${formatG(cell.mean, 3)}${panel.fastest[modality] === method ? "*" : ""}` : "",
-        ),
+        row.map((cell, modality) => {
+          if (!cell) return "";
+          const star = compact && panel.fastest[modality] === method ? "★ " : "";
+          return `${star}${formatG(cell.mean, 3)}`;
+        }),
       ),
       customdata: panel.cells.map((row, method) =>
         row.map((cell, modality) =>
@@ -125,17 +161,16 @@ export function rankingsFigure(
       zmax: max,
       colorscale,
       colorbar: {
-        orientation: "h",
-        x: (domain.x[0] + domain.x[1]) / 2,
-        xanchor: "center",
-        y: domain.y[0] - grid.fy(30),
-        yanchor: "top",
-        len: (domain.x[1] - domain.x[0]) * 0.8,
-        thickness: 8,
-        nticks: plotWidth < 240 ? 3 : 6,
+        x: domain.x[1] + grid.fx(10),
+        xanchor: "left",
+        y: (domain.y[0] + domain.y[1]) / 2,
+        yanchor: "middle",
+        len: domain.y[1] - domain.y[0],
+        thickness: compact ? 8 : 10,
+        nticks: panel.methods.length < 6 ? 3 : 6,
         outlinewidth: 0,
-        tickfont: { color: theme.muted, size: 10 },
-        title: { text: "Mean (s)", side: "right", font: { color: theme.muted, size: 11 } },
+        tickfont: { color: theme.muted, size: compact ? 9 : 10 },
+        title: { text: "Mean (s)", side: "right", font: { color: theme.muted, size: compact ? 10 : 11 } },
       },
     };
   });

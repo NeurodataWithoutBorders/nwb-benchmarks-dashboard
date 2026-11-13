@@ -26,6 +26,7 @@ const theme: ChartTheme = {
   grid: "rgb(4, 4, 4)",
   frame: "rgb(5, 5, 5)",
   guide: "rgb(6, 6, 6)",
+  accent: "rgb(7, 7, 7)",
   font: "sans-serif",
   heat: ["rgb(0, 0, 0)", "rgb(1, 0, 0)", "rgb(2, 0, 0)", "rgb(3, 0, 0)", "rgb(4, 0, 0)"],
   color: (expression) => (expression.startsWith("var(") ? "rgb(9, 9, 9)" : expression),
@@ -53,10 +54,15 @@ describe("rankings", () => {
     const spec = rankingsFigure(panels, "paper", wide);
     const heatmaps = ofType(spec, "heatmap");
     expect(heatmaps).toHaveLength(4);
-    const stars = heatmaps
-      .flatMap((heatmap) => (heatmap.text as string[][]).flat())
-      .filter((text) => text.endsWith("*"));
-    expect(stars).toHaveLength(12);
+    // The fastest cell of each modality is outlined and badged with a star, its value left as it is.
+    expect(annotationTexts(spec).filter((text) => text === "★")).toHaveLength(12);
+    expect(spec.layout.shapes).toHaveLength(12);
+    expect(heatmaps.flatMap((heatmap) => (heatmap.text as string[][]).flat()).some((text) => text.includes("★"))).toBe(
+      false,
+    );
+    // Each heatmap's color scale stands upright beside it.
+    expect((heatmaps[0].colorbar as { orientation?: string; xanchor: string }).orientation).toBeUndefined();
+    expect((heatmaps[0].colorbar as { xanchor: string }).xanchor).toBe("left");
     expect(heatmaps[1].zmax).toBe(200);
     expect(annotationTexts(spec)).toContain("<b>Remote File Opening</b>");
     expect(annotationTexts(spec).some((text) => text.includes("a)"))).toBe(false);
@@ -68,12 +74,17 @@ describe("rankings", () => {
   });
 
   it("letters panels in the manuscript view, and fits narrow ones", () => {
+    const narrowSpec = rankingsFigure(panels, "paper", narrow);
+    // No room for a badge beside a narrow cell's value: the star goes before it instead.
+    expect(annotationTexts(narrowSpec).filter((text) => text === "★")).toHaveLength(0);
+    const starred = ofType(narrowSpec, "heatmap").flatMap((heatmap) => (heatmap.text as string[][]).flat());
+    expect(starred.filter((text) => text.startsWith("★ "))).toHaveLength(12);
     const spec = rankingsFigure(methodRankings(empty), "data", narrow);
     expect(annotationTexts(spec)).toContain("<b>a)</b>");
     const [first] = ofType(spec, "heatmap");
     expect((first.textfont as { size: number }).size).toBe(9);
     expect((first.z as (number | null)[][]).flat().every((value) => value === null)).toBe(true);
-    expect((first.colorbar as { nticks: number }).nticks).toBe(3);
+    expect((first.colorbar as { thickness: number }).thickness).toBe(8);
   });
 
   it("scales to the paper's ranges or to the data", () => {
