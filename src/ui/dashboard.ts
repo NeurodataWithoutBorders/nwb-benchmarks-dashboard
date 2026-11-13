@@ -146,7 +146,11 @@ export function createDashboard(
     empty: string,
     build: (options: FigureOptions) => FigureSpec,
   ): void {
-    const options: FigureOptions = { width: figureWidth(card), theme: readTheme(), letters: manuscript !== null };
+    const options: FigureOptions = {
+      width: figureWidth(card),
+      theme: readTheme(),
+      letters: manuscript !== null,
+    };
     setNote(card.note, rows.length ? null : empty);
     if (card.viewPlot.checked)
       drawFigure(card.plot, rows.length ? build(options) : emptyFigure(options.theme, empty), name, SOURCE_DATA_URL);
@@ -254,10 +258,9 @@ export function createDashboard(
       "aria-label",
       on ? "Leave the manuscript's figures for every record" : "Show the manuscript's figures",
     );
-    els.manuscriptTooltipTitle.textContent = on ? "Manuscript figures: on" : "Manuscript figures";
     els.manuscriptTooltipText.textContent = on
-      ? `Each figure is drawn as the manuscript draws it, panels lettered. ${MANUSCRIPT_DESCRIPTION} Click again, or type a search, to see every record.`
-      : `Draws each figure as the NWB Benchmarks manuscript does, panels lettered. ${MANUSCRIPT_DESCRIPTION}`;
+      ? "Each figure is drawn as the manuscript draws it, panels lettered."
+      : "Draws each figure as the NWB Benchmarks manuscript does, panels lettered.";
   }
 
   function renderAll(): void {

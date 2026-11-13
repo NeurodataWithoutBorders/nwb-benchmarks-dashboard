@@ -111,11 +111,11 @@ test.describe("the dashboard", () => {
     await expect(tooltip).toBeHidden();
     await toggle.hover();
     await expect(tooltip).toBeVisible();
-    await expect(tooltip).toContainText("Draws each figure as the NWB Benchmarks manuscript does");
+    await expect(tooltip).toHaveText("Draws each figure as the NWB Benchmarks manuscript does, panels lettered.");
     await toggle.click();
     await expect(page).toHaveURL(/\?manuscript$/);
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await expect(tooltip).toContainText("Click again, or type a search, to see every record.");
+    await expect(tooltip).toHaveText("Each figure is drawn as the manuscript draws it, panels lettered.");
     await expect(page.locator("#search-input")).toHaveAttribute("placeholder", /^Showing the manuscript's figures/);
     await expect(page.locator("#rankings-plot")).toContainText("a)");
     await expect(page.locator("#versions-plot")).toContainText("2024-06-30");

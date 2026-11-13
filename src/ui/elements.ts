@@ -29,7 +29,6 @@ export type FigureCardElements = ReturnType<typeof figureCard>;
 export function getElements() {
   return {
     manuscriptToggle: required<HTMLButtonElement>("manuscript-toggle"),
-    manuscriptTooltipTitle: required<HTMLElement>("manuscript-tooltip-title"),
     manuscriptTooltipText: required<HTMLSpanElement>("manuscript-tooltip-text"),
 
     loadCard: required<HTMLElement>("load-card"),

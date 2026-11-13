@@ -178,12 +178,6 @@
   pointer-events: none;
 }
 
-.header-tooltip strong {
-  display: block;
-  margin-bottom: 0.2rem;
-  color: var(--text);
-}
-
 .header-control:hover .header-tooltip,
 .manuscript-toggle:focus-visible + .header-tooltip {
   visibility: visible;

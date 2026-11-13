@@ -2,7 +2,6 @@
 // Boots at `?manuscript`, the link to the manuscript's figures: each figure takes the selection the
 // Python pipeline draws it from, on the parity fixture served as the published bundle.
 import { beforeAll, describe, expect, it } from "vitest";
-import { MANUSCRIPT_DESCRIPTION } from "../../src/lib/filters";
 import { bootMain, dashboardShown, el, publishedBundleFetch } from "./helpers/mainHarness";
 import { lastPlot } from "./helpers/plotly";
 
@@ -16,8 +15,9 @@ describe("main.ts boot at ?manuscript", () => {
     expect(window.location.search).toBe("?manuscript");
     expect(el("manuscript-toggle").getAttribute("aria-pressed")).toBe("true");
     expect(el<HTMLInputElement>("search-input").value).toBe("");
-    expect(el("manuscript-tooltip-text").textContent).toContain(MANUSCRIPT_DESCRIPTION);
-    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures: on");
+    expect(el("manuscript-tooltip-text").textContent).toBe(
+      "Each figure is drawn as the manuscript draws it, panels lettered.",
+    );
   });
 
   it("draws the single-environment figures from the reference environment, lettering the panels", () => {

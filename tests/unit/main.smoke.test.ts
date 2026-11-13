@@ -7,7 +7,6 @@ import { installObserverStub, routeFetch, throwingStorage } from "@brain-bbqs/te
 import Plotly from "plotly.js-cartesian-dist-min";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { RESULTS_BUNDLE_URL } from "../../src/lib/bundle";
-import { MANUSCRIPT_DESCRIPTION } from "../../src/lib/filters";
 import { THEME_KEY } from "../../src/lib/settings";
 import { bootMain, dashboardShown, el, publishedBundleFetch, search } from "./helpers/mainHarness";
 import { lastPlot, plotCount } from "./helpers/plotly";
@@ -116,9 +115,9 @@ describe("main.ts boot", () => {
     toggle.click();
     expect(window.location.search).toBe("?manuscript");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures: on");
-    expect(el("manuscript-tooltip-text").textContent).toContain(MANUSCRIPT_DESCRIPTION);
-    expect(el("manuscript-tooltip-text").textContent).toContain("Click again, or type a search, to see every record.");
+    expect(el("manuscript-tooltip-text").textContent).toBe(
+      "Each figure is drawn as the manuscript draws it, panels lettered.",
+    );
     expect(el<HTMLInputElement>("search-input").value).toBe("");
     expect(el<HTMLInputElement>("search-input").placeholder).toMatch(/^Showing the manuscript's figures/);
     expect(el<HTMLSelectElement>("rankings-scale").value).toBe("paper");
@@ -133,9 +132,8 @@ describe("main.ts boot", () => {
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     expect(toggle.getAttribute("aria-label")).toBe("Show the manuscript's figures");
     expect(toggle.getAttribute("aria-describedby")).toBe("manuscript-tooltip");
-    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures");
-    expect(el("manuscript-tooltip-text").textContent).toMatch(
-      /^Draws each figure as the NWB Benchmarks manuscript does/,
+    expect(el("manuscript-tooltip-text").textContent).toBe(
+      "Draws each figure as the NWB Benchmarks manuscript does, panels lettered.",
     );
     expect(annotations("rankings-plot")).not.toContain("<b>a)</b>");
 
