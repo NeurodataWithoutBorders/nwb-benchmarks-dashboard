@@ -34,6 +34,8 @@ describe("main.ts boot at ?manuscript", () => {
   it("goes back to every result from the toggle", () => {
     el("manuscript-toggle").click();
     expect(window.location.search).toBe("");
-    expect(el("manuscript-tooltip-title").textContent).toBe("Manuscript figures");
+    expect(el("manuscript-tooltip-text").textContent).toBe(
+      "Draws each figure as the NWB Benchmarks manuscript does, panels lettered.",
+    );
   });
 });
