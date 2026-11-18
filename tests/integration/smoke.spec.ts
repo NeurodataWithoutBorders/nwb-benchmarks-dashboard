@@ -22,7 +22,10 @@ test.describe("NWB Benchmarks Dashboard shell", () => {
     );
     const versionLink = page.locator("#version-indicator");
     await expect(versionLink).toHaveText(/^v\d+\.\d+\.\d+$/);
-    await expect(versionLink).toHaveAttribute("href", "https://github.com/brain-bbqs/nwb-benchmarks-dashboard");
+    await expect(versionLink).toHaveAttribute(
+      "href",
+      "https://github.com/NeurodataWithoutBorders/nwb-benchmarks-dashboard",
+    );
     await expect(page.locator('a.footer-brand-link[href="https://centerforopenneuroscience.org"]')).toBeVisible();
     await expect(page.locator("#load-status")).toHaveText("Downloading the latest results… 793 KB of 1.9 MB");
     await expect(page.locator("#retry-load-btn")).toBeHidden();
