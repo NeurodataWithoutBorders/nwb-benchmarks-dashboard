@@ -1,6 +1,6 @@
 {
   "name": "nwb-benchmarks-dashboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The NWB Benchmarks results, drawn in the browser as the paper's figures, for any machine, environment or time range.",
   "type": "module",
   "license": "MIT",

@@ -248,7 +248,7 @@ describe("main.ts boot", () => {
   it("carries only the version stamp and the CON mark in its footer, and no BBQS mark", () => {
     const footer = document.querySelector(".page-footer-bar") as HTMLElement;
     expect([...footer.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toEqual([
-      "https://github.com/brain-bbqs/nwb-benchmarks-dashboard",
+      "https://github.com/NeurodataWithoutBorders/nwb-benchmarks-dashboard",
       "https://centerforopenneuroscience.org",
     ]);
     expect(document.querySelector('a[href*="brain-bbqs.org"]')).toBeNull();
