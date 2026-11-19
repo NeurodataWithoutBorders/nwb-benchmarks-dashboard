@@ -43,6 +43,8 @@ forEachViewport(test, "Main page - search suggestions", async ({ page }) => {
 
 forEachViewport(test, "Main page - manuscript button explained", async ({ page }) => {
   await page.goto("/?test&mock_data");
+  // The header is up before the dashboard, so hovering alone can capture the loading card still showing.
+  await expect(page.locator("#load-card")).toBeHidden();
   await page.locator("#manuscript-toggle").hover();
   await expect(page.locator("#manuscript-tooltip")).toBeVisible();
   await expectNoHorizontalOverflow(page);
