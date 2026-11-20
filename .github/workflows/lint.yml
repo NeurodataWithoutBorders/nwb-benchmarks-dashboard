@@ -40,10 +40,10 @@ jobs:
       - name: Unit tests with coverage
         run: npm run test:coverage
 
-      # Dependabot pull_request runs get no repository secrets, so CODECOV_TOKEN is empty and the
-      # upload would fail every dependency-bump PR; skip it for that actor instead of failing lint.
+      # Pull request runs from Dependabot or from a fork get no repository secrets, so CODECOV_TOKEN
+      # is empty and the upload would fail; skip it for both instead of failing lint.
       - name: Upload coverage to Codecov
-        if: ${{ github.actor != 'dependabot[bot]' }}
+        if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: codecov/codecov-action@v7
         with:
           files: ./coverage/lcov.info
