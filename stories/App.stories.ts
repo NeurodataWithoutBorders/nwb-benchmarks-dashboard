@@ -40,6 +40,8 @@ function buildApp(state: AppState): HTMLElement {
   // version link would render as an empty (invisible) anchor in the snapshots.
   const version = wrapper.querySelector("#version-indicator");
   if (version) version.textContent = `v${__APP_VERSION__}`;
+  // index.html ships the loading card hidden and main.ts reveals it once loading starts.
+  wrapper.querySelector("#load-card")?.removeAttribute("hidden");
   applyState(wrapper, state);
   return wrapper;
 }
