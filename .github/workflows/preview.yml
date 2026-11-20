@@ -12,6 +12,9 @@ concurrency: preview-${{ github.ref }}
 
 jobs:
   deploy-preview:
+    # A fork's pull request gets a read-only GITHUB_TOKEN whatever `permissions:` asks for, so its
+    # push to gh-pages would be refused.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write
