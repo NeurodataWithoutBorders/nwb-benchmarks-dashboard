@@ -15,8 +15,8 @@ function applyState(wrapper: HTMLElement, state: AppState): void {
   const status = wrapper.querySelector("#load-status");
   const fill = wrapper.querySelector<HTMLElement>("#load-progress-fill");
   if (state === "loading") {
-    if (status) status.textContent = "Downloading the latest results… 793 KB of 1.9 MB";
-    if (fill) fill.style.width = "41%";
+    if (status) status.textContent = "Downloading the latest results… 1.4 MB of 1.9 MB";
+    if (fill) fill.style.width = "73%";
     return;
   }
   if (status) status.textContent = "The results could not be loaded.";
