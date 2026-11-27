@@ -167,6 +167,30 @@ describe("main.ts boot", () => {
     expect(plotCount(el("rankings-plot"))).toBe(drawn + 1);
   });
 
+  it("lists the changes from each environment to the next in their own view, and saves them", () => {
+    el<HTMLInputElement>("versions-view-changes").click();
+    expect(el("versions-plot").hidden).toBe(true);
+    expect(el("versions-table-view").hidden).toBe(true);
+    expect(el("versions-changes-view").hidden).toBe(false);
+    expect(el("versions-changes-table").querySelectorAll("tbody tr").length).toBeGreaterThan(0);
+    expect(el<HTMLButtonElement>("versions-changes-csv-btn").disabled).toBe(false);
+
+    const createObjectURL = vi.fn(() => "blob:x");
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    el("versions-changes-csv-btn").click();
+    expect(click).toHaveBeenCalledTimes(1);
+    click.mockRestore();
+
+    search("machine:nobody");
+    expect(el<HTMLButtonElement>("versions-changes-csv-btn").disabled).toBe(true);
+    search("");
+
+    el<HTMLInputElement>("versions-view-plot").click();
+    expect(el("versions-plot").hidden).toBe(false);
+    expect(el("versions-changes-view").hidden).toBe(true);
+  });
+
   it("redraws a figure when its width changes", () => {
     const observer = resizeObservers.instances[0] as unknown as { callback: ResizeObserverCallback };
     const plot = el("rankings-plot");

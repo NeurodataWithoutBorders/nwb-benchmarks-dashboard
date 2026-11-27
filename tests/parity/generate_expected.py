@@ -15,7 +15,7 @@ nwb-benchmarks changes:
 
 ``bundle.json.gz`` is the file on the ``dist`` branch of nwb-benchmarks-results. The script needs
 polars 1.x (its figure code uses arguments polars 2 removed), pandas, numpy, matplotlib,
-seaborn and packaging, but not an installed nwb-benchmarks.
+seaborn, packaging and typing_extensions, but not an installed nwb-benchmarks.
 """
 
 import argparse
@@ -296,13 +296,18 @@ def main() -> None:
         )
         visualizer._set_environment_output_context(None)
         over_time = {}
+        over_time_changes = {}
         for benchmark_type in ["time_remote_file_reading", "time_remote_slicing"]:
             visualizer.plot_performance_across_versions(base_db, benchmark_type=benchmark_type)
             rows = read_csv(scratch / "summaries" / f"performance_over_{benchmark_type}_summary.csv")
             # The figure joins every result row to each package of interest; one package's rows
             # are the results once.
             over_time[benchmark_type] = [row for row in rows if row["package_name"] == "h5py"]
+            over_time_changes[benchmark_type] = read_csv(
+                scratch / "summaries" / f"performance_over_{benchmark_type}_changes.csv"
+            )
         expected["performance_over_time"] = over_time
+        expected["performance_over_time_changes"] = over_time_changes
 
     (args.fixtures / "parity-expected.json").write_text(dump_one_row_per_line(expected) + "\n")
     print(f"Wrote {len(fixture)} fixture files ({len(fixture_bytes) / 1e6:.2f} MB uncompressed).")

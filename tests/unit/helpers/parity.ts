@@ -30,6 +30,7 @@ export interface Expected {
   source: { lbl_mac_machine_ids: string[]; exclude_older: string };
   contexts: Record<string, ExpectedContext>;
   performance_over_time: Record<string, ExpectedRow[]>;
+  performance_over_time_changes: Record<string, ExpectedRow[]>;
   derived_names: { benchmarks: ExpectedRow[]; modalities: ExpectedRow[]; scaling: ExpectedRow[] };
 }
 

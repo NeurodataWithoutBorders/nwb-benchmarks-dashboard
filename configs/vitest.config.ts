@@ -11,8 +11,8 @@ export default defineConfig(
     // locally (and in CI) before the Codecov upload. Raise these as coverage improves; they are
     // not a target, only a floor.
     thresholds: {
-      statements: 99.3,
-      branches: 93.5,
+      statements: 99.4,
+      branches: 93.6,
       functions: 99.9,
       lines: 99.9,
     },

@@ -82,7 +82,7 @@ test.describe("the dashboard", () => {
     await expect(page.locator("#versions-benchmark")).toBeHidden();
     await page.locator("#versions-settings-btn").click();
     await page.locator("#versions-benchmark").selectOption("time_remote_slicing");
-    await expect(page.locator("#versions-plot")).toContainText("not preloaded");
+    await expect(page.locator("#versions-plot")).toContainText("first slice read");
     await page.keyboard.press("Escape");
     await expect(page.locator("#versions-settings")).toBeHidden();
     await expect(page.locator("#incremental-plot")).toContainText("log scale");

@@ -51,6 +51,12 @@ To start from nothing, clear the site's data in the browser.
 The method rankings and network traffic take the LBNL Mac's results since 2025-11-01 in the 2026-10-07 environment, and the comparison across versions and the incremental slicing figure take the same machine's results in all the dated environments.
 Typing a search leaves the view.
 
+## The comparison across versions
+
+Its slicing panels take the largest slice only, as the method rankings do and as `generate_figures` has since nwb-benchmarks [#231](https://github.com/NeurodataWithoutBorders/nwb-benchmarks/pull/231).
+Its Changes view is that pull request's `performance_over_<benchmark>_changes.csv`: each method's runtime and network traffic from one group to the next, the largest fold changes first and runtimes both under 10 ms (reads served from cache) last.
+It compares whichever groups the figure plots, so it follows the "Compare by" setting rather than only the dated environments.
+
 ## Parity with the Python figures
 
 The figures port nwb-benchmarks' Python figure code (`src/nwb_benchmarks/database/_processing.py` and `_visualization.py`), and `tests/unit/parity.test.ts` checks the port number by number against that code.

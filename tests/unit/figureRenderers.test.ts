@@ -13,7 +13,13 @@ import type { ChartTheme } from "../../src/ui/charts/theme";
 import { INCREMENTAL_COLUMNS, incrementalFigure, incrementalRows } from "../../src/ui/figures/incremental";
 import { RANKINGS_COLUMNS, heatMax, rankingsFigure, rankingsRows } from "../../src/ui/figures/rankings";
 import { TRAFFIC_COLUMNS, trafficFigure, trafficRows } from "../../src/ui/figures/traffic";
-import { VERSIONS_COLUMNS, versionsFigure, versionsRows } from "../../src/ui/figures/versions";
+import {
+  VERSIONS_COLUMNS,
+  VERSION_CHANGES_COLUMNS,
+  versionChangeRows,
+  versionsFigure,
+  versionsRows,
+} from "../../src/ui/figures/versions";
 
 const dataset = applyFilters(readDatabase(synthesizeMockBundle()), ALL_DATA);
 const empty = applyFilters(readDatabase(synthesizeMockBundle()), { ...ALL_DATA, selected: { machine: ["nobody"] } });
@@ -158,6 +164,28 @@ describe("versions", () => {
     expect(legendNames(spec)).toHaveLength(10);
     const rows = versionsRows(figure);
     expect(VERSIONS_COLUMNS.map((column) => column.value(rows[0]))).toHaveLength(VERSIONS_COLUMNS.length);
+  });
+
+  it("titles slicing panels by modality and first or repeated slice read", () => {
+    const spec = versionsFigure(performanceAcrossVersions(dataset, "time_remote_slicing"), "x", wide);
+    expect(annotationTexts(spec)).toEqual([
+      "<b>Ecephys, first slice read</b>",
+      "<b>Ophys, first slice read</b>",
+      "<b>Icephys, first slice read</b>",
+      "<b>Ecephys, repeated slice read</b>",
+      "<b>Ophys, repeated slice read</b>",
+      "<b>Icephys, repeated slice read</b>",
+    ]);
+    const reading = versionsFigure(performanceAcrossVersions(dataset, "time_remote_file_reading"), "x", wide);
+    expect(annotationTexts(reading)).toEqual(["<b>Ecephys</b>", "<b>Ophys</b>", "<b>Icephys</b>"]);
+  });
+
+  it("lists each change between labelled groups", () => {
+    const rows = versionChangeRows(performanceAcrossVersions(dataset, "time_remote_file_reading", "pkg-h5py"));
+    expect(rows[0]).toMatchObject({ from: "3.14.0", to: "3.16.0" });
+    const values = VERSION_CHANGES_COLUMNS.map((column) => column.value(rows[0]));
+    expect(values).toHaveLength(VERSION_CHANGES_COLUMNS.length);
+    expect(values.slice(0, 2)).toEqual(["3.14.0", "3.16.0"]);
   });
 
   it("slants group labels too long for a narrow panel", () => {

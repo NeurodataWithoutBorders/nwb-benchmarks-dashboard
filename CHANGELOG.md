@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+#### 🚀 Enhancement
+
+- The comparison across versions plots slicing at the largest slice, titles panels by first or repeated slice read, and lists each change in a Changes view ([#20](https://github.com/NeurodataWithoutBorders/nwb-benchmarks-dashboard/pull/20))
+
 ## 0.1.1
 
 #### 🐛 Bug Fix
