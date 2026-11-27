@@ -34,7 +34,13 @@ import type { AppElements, FigureCardElements } from "./elements";
 import { INCREMENTAL_COLUMNS, incrementalFigure, incrementalRows, type TimeAxis } from "./figures/incremental";
 import { RANKINGS_COLUMNS, rankingsFigure, rankingsRows, type HeatmapScale } from "./figures/rankings";
 import { TRAFFIC_COLUMNS, trafficFigure, trafficRows } from "./figures/traffic";
-import { VERSIONS_COLUMNS, versionsFigure, versionsRows } from "./figures/versions";
+import {
+  VERSIONS_COLUMNS,
+  VERSION_CHANGES_COLUMNS,
+  versionChangeRows,
+  versionsFigure,
+  versionsRows,
+} from "./figures/versions";
 import { initSearch } from "./search";
 import { initSettings } from "./settings";
 import { downloadCsv, fillTable } from "./table";
@@ -116,7 +122,7 @@ export function createDashboard(
     els.versions.benchmark,
     [
       ["time_remote_file_reading", "Remote file opening, PyNWB"],
-      ["time_remote_slicing", "Remote slicing, PyNWB"],
+      ["time_remote_slicing", "Remote slicing, PyNWB (largest slice)"],
     ],
     "time_remote_file_reading",
   );
@@ -205,6 +211,11 @@ export function createDashboard(
         `The selection holds a single ${axis.id === "environment" ? "software environment" : axis.label}: widen the search to compare several.`,
       );
     }
+    const changes = versionChangeRows(figure);
+    fillTable(card.changesTable, VERSION_CHANGES_COLUMNS, changes);
+    card.changesCsvBtn.disabled = changes.length === 0;
+    card.changesCsvBtn.onclick = () =>
+      downloadCsv("performance-across-versions-changes.csv", VERSION_CHANGES_COLUMNS, changes);
   }
 
   function renderIncrementalCard(data: Dataset): void {
@@ -314,19 +325,26 @@ export function createDashboard(
     } else showManuscript();
   });
 
+  /** The views a card has beyond its plot and table, each by the radio button that shows it. */
+  const extraViews = new Map<FigureCardElements, [HTMLInputElement, HTMLElement][]>([
+    [els.versions, [[els.versions.viewChanges, els.versions.changesView]]],
+  ]);
+
   for (const renderer of renderers) {
     const [card] = renderer;
     initSettings(card.settingsBtn, card.settings);
     for (const control of card.card.querySelectorAll("select"))
       control.addEventListener("change", () => renderFigure(...renderer));
+    const views: [HTMLInputElement, HTMLElement][] = [
+      [card.viewPlot, card.plot],
+      [card.viewTable, card.tableView],
+      ...(extraViews.get(card) ?? []),
+    ];
     const showView = (): void => {
-      const table = card.viewTable.checked;
-      card.plot.hidden = table;
-      card.tableView.hidden = !table;
-      if (!table) renderFigure(...renderer);
+      for (const [radio, view] of views) view.hidden = !radio.checked;
+      if (card.viewPlot.checked) renderFigure(...renderer);
     };
-    card.viewPlot.addEventListener("change", showView);
-    card.viewTable.addEventListener("change", showView);
+    for (const [radio] of views) radio.addEventListener("change", showView);
   }
 
   els.summary.refreshBtn.addEventListener("click", () => {

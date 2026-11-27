@@ -1,11 +1,12 @@
 // The comparison across versions: per modality, the mean runtime of each PyNWB method across
 // environments (or package versions), joined by lines, with 95 % bootstrap intervals, as
-// nwb-benchmarks' `plot_performance_across_versions` draws it.
+// nwb-benchmarks' `plot_performance_across_versions` draws it, and the table of changes from each
+// group to the next that it writes beside the figure.
 
 import type { Column } from "../../lib/csv";
 import { formatG, formatSeconds } from "../../lib/format";
-import type { PerformanceAcrossVersions, VersionPanel, VersionPoint } from "../../lib/figures/versions";
-import { methodColor, methodLabel, methodLineStyle, methodMarker } from "../../lib/methods";
+import type { PerformanceAcrossVersions, VersionChange, VersionPanel, VersionPoint } from "../../lib/figures/versions";
+import { NETWORK_METRIC_LABELS, methodColor, methodLabel, methodLineStyle, methodMarker } from "../../lib/methods";
 import { axisNames, gridLayout, legendHeight } from "../charts/grid";
 import {
   axis,
@@ -23,7 +24,7 @@ import {
 
 function panelTitle(panel: VersionPanel): string {
   if (panel.preloaded === null) return panel.modality;
-  return `${panel.modality} · ${panel.preloaded ? "preloaded" : "not preloaded"}`;
+  return `${panel.modality}, ${panel.preloaded ? "repeated slice read" : "first slice read"}`;
 }
 
 function pointHover(method: string, group: string, point: VersionPoint): string {
@@ -153,4 +154,48 @@ export const VERSIONS_COLUMNS: Column<VersionsRow>[] = [
   { label: "95% high (s)", value: (row) => row.point.interval?.[1] ?? null },
   { label: "Median (s)", value: (row) => row.point.summary.median },
   { label: "Std (s)", value: (row) => row.point.summary.std },
+];
+
+export interface VersionChangeRow {
+  from: string;
+  to: string;
+  change: VersionChange;
+}
+
+export function versionChangeRows(figure: PerformanceAcrossVersions): VersionChangeRow[] {
+  const labels = new Map(figure.groups.map((group) => [group.key, group.label]));
+  return figure.changes.map((change) => ({
+    from: labels.get(change.from) ?? change.from,
+    to: labels.get(change.to) ?? change.to,
+    change,
+  }));
+}
+
+const DOWNLOADED = NETWORK_METRIC_LABELS.amount_downloaded_in_bytes;
+const PACKETS = NETWORK_METRIC_LABELS.total_traffic_in_number_of_web_packets;
+
+export const VERSION_CHANGES_COLUMNS: Column<VersionChangeRow>[] = [
+  { label: "From", value: (row) => row.from },
+  { label: "To", value: (row) => row.to },
+  { label: "Method", value: (row) => methodLabel(row.change.method) },
+  { label: "Method (benchmark name)", value: (row) => row.change.method },
+  { label: "Modality", value: (row) => row.change.modality },
+  { label: "Preloaded", value: (row) => row.change.preloaded },
+  { label: "n (from)", value: (row) => row.change.before.n },
+  { label: "n (to)", value: (row) => row.change.after.n },
+  { label: "Mean (s, from)", value: (row) => row.change.before.mean },
+  { label: "Mean (s, to)", value: (row) => row.change.after.mean },
+  { label: "Change (s)", value: (row) => row.change.absoluteChange },
+  { label: "Change (%)", value: (row) => row.change.percentChange },
+  { label: "Fold change", value: (row) => row.change.foldChange },
+  { label: `${DOWNLOADED} (from)`, value: (row) => row.change.before.network.amount_downloaded_in_bytes },
+  { label: `${DOWNLOADED} (to)`, value: (row) => row.change.after.network.amount_downloaded_in_bytes },
+  { label: `${DOWNLOADED} change (%)`, value: (row) => row.change.networkPercentChange.amount_downloaded_in_bytes },
+  { label: `${PACKETS} (from)`, value: (row) => row.change.before.network.total_traffic_in_number_of_web_packets },
+  { label: `${PACKETS} (to)`, value: (row) => row.change.after.network.total_traffic_in_number_of_web_packets },
+  {
+    label: `${PACKETS} change (%)`,
+    value: (row) => row.change.networkPercentChange.total_traffic_in_number_of_web_packets,
+  },
+  { label: "Both under 10 ms", value: (row) => row.change.cached },
 ];

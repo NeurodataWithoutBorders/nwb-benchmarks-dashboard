@@ -8,7 +8,7 @@ import { MANUSCRIPT_SELECTIONS, applyFilters, type FilterState } from "../../src
 import { incrementalOverview, incrementalSlicing } from "../../src/lib/figures/incremental";
 import { methodRankings } from "../../src/lib/figures/rankings";
 import { fileOpenTraffic, slicingTraffic, type TrafficPoint } from "../../src/lib/figures/traffic";
-import { performanceAcrossVersions, type VersionsBenchmark } from "../../src/lib/figures/versions";
+import { performanceAcrossVersions, type VersionChange, type VersionsBenchmark } from "../../src/lib/figures/versions";
 import { methodLabel } from "../../src/lib/methods";
 import type { Summary } from "../../src/lib/stats";
 import { close, readExpected, readParityBundle, type ExpectedRow } from "./helpers/parity";
@@ -190,3 +190,50 @@ describe.each(Object.entries(expected.performance_over_time))("Figure 4b, %s", (
     expect(figure.methods.map(methodLabel).length).toBeGreaterThan(0);
   });
 });
+
+describe.each(Object.entries(expected.performance_over_time_changes))(
+  "Figure 4b's change table, %s",
+  (benchmark, rows) => {
+    const figure = performanceAcrossVersions(
+      applyFilters(db, MANUSCRIPT_SELECTIONS.timepoints),
+      benchmark as VersionsBenchmark,
+    );
+    const label = (key: string): string | undefined => figure.groups.find((group) => group.key === key)?.label;
+    const identity = (change: VersionChange): string =>
+      JSON.stringify([label(change.from), label(change.to), change.method, change.modality, change.preloaded]);
+    const rowIdentity = (row: ExpectedRow): string =>
+      JSON.stringify([
+        row.from_environment,
+        row.to_environment,
+        row.benchmark_name_clean,
+        row.modality,
+        row.is_preloaded ?? null,
+      ]);
+
+    it("compares the same methods between the same environments, in the same order", () => {
+      expect(figure.changes.map(identity)).toEqual(rows.map(rowIdentity));
+    });
+
+    it.each(rows.map((row) => [rowIdentity(row), row]))("%s", (id, row) => {
+      const change = figure.changes.find((candidate) => identity(candidate) === id) as VersionChange;
+      const values: [string, number | null][] = [
+        ["n_from", change.before.n],
+        ["n_to", change.after.n],
+        ["mean_s_from", change.before.mean],
+        ["mean_s_to", change.after.mean],
+        ["absolute_change_s", change.absoluteChange],
+        ["percent_change", change.percentChange],
+        ["fold_change", change.foldChange],
+        ["downloaded_bytes_from", change.before.network.amount_downloaded_in_bytes],
+        ["downloaded_bytes_to", change.after.network.amount_downloaded_in_bytes],
+        ["downloaded_bytes_percent_change", change.networkPercentChange.amount_downloaded_in_bytes],
+        ["web_packets_from", change.before.network.total_traffic_in_number_of_web_packets],
+        ["web_packets_to", change.after.network.total_traffic_in_number_of_web_packets],
+        ["web_packets_percent_change", change.networkPercentChange.total_traffic_in_number_of_web_packets],
+      ];
+      for (const [key, value] of values)
+        expect(close(value, row[key]), `${key}: ${value} vs ${String(row[key])}`).toBe(true);
+      expect(change.cached).toBe(row.below_10ms);
+    });
+  },
+);

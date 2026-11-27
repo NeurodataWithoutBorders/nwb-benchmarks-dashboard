@@ -304,7 +304,8 @@
           </div>
           <p class="figure-lead">
             Mean runtime of each PyNWB method across software environments, or across versions of one package, with 95%
-            bootstrap intervals.
+            bootstrap intervals; slicing shows the largest slice. Changes lists how each method's runtime and network
+            traffic moved from each environment or version to the next, largest first.
           </p>
           <div class="figure-controls">
             <div class="radio-toggle" role="radiogroup" aria-label="View">
@@ -312,6 +313,8 @@
               <label for="versions-view-plot">Plot</label>
               <input type="radio" id="versions-view-table" name="versions-view" value="table" />
               <label for="versions-view-table">Table</label>
+              <input type="radio" id="versions-view-changes" name="versions-view" value="changes" />
+              <label for="versions-view-changes">Changes</label>
             </div>
             <div class="settings-wrapper">
               <button
@@ -358,6 +361,10 @@
           <div id="versions-table-view" class="figure-table-view" hidden>
             <div id="versions-table" class="data-table-wrapper"></div>
             <button type="button" id="versions-csv-btn" class="small">Download CSV</button>
+          </div>
+          <div id="versions-changes-view" class="figure-table-view" hidden>
+            <div id="versions-changes-table" class="data-table-wrapper"></div>
+            <button type="button" id="versions-changes-csv-btn" class="small">Download CSV</button>
           </div>
         </section>
         <section class="card figure-card" id="incremental-card" aria-labelledby="incremental-title">

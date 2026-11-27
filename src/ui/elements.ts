@@ -64,6 +64,10 @@ export function getElements() {
       ...figureCard("versions"),
       benchmark: required<HTMLSelectElement>("versions-benchmark"),
       axis: required<HTMLSelectElement>("versions-axis"),
+      viewChanges: required<HTMLInputElement>("versions-view-changes"),
+      changesView: required<HTMLDivElement>("versions-changes-view"),
+      changesTable: required<HTMLDivElement>("versions-changes-table"),
+      changesCsvBtn: required<HTMLButtonElement>("versions-changes-csv-btn"),
     },
     incremental: {
       ...figureCard("incremental"),
